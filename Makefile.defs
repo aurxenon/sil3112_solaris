@@ -1,0 +1,9 @@
+CC:=sparc64-sun-solaris2.10-gcc
+LD:=sparc64-sun-solaris2.10-ld
+
+CFLAGS=-D_KERNEL -D_SYSCALL32 -mcmodel=medlow -fno-pic -mno-fpu -ffreestanding -nodefaultlibs
+
+MODS_DIR = ${TOP_LEVEL_DIR}/mods
+
+${MODS_DIR}:
+	mkdir -p $@
