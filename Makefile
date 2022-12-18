@@ -2,13 +2,15 @@ TOP_LEVEL_DIR = $(shell /bin/pwd)
 
 include Makefile.defs
 
-SUBDIRS = dktp
+SUBDIRS = dktp \
+          pci-ide
 
 .PHONY: ${SUBDIRS}
 
-all: ${SUBDIRS}
-	${MAKE} -C $^ all
+all: $(SUBDIRS)
 
-clean: ${SUBDIRS}
-	${MAKE} -C $^ clean
+clean: $(SUBDIRS)
 	rm -rf ${MODS_DIR}
+
+$(SUBDIRS):
+	$(MAKE) -C $@ $(MAKECMDGOALS)
