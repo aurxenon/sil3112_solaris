@@ -40,6 +40,7 @@
 #include <sys/modctl.h>
 #include <sys/ddi.h>
 #include <sys/sunddi.h>
+#include <sys/sunndi.h>
 #include <sys/kmem.h>
 #include <sys/pci.h>
 #include <sys/promif.h>
@@ -189,35 +190,30 @@ static struct modlinkage modlinkage = {
 int
 _init(void)
 {
-	cmn_err(CE_NOTE, "Initializing PCI-IDE module\n");
 	return (mod_install(&modlinkage));
 }
 
 int
 _fini(void)
 {
-	cmn_err(CE_NOTE, "Entering _fini!\n");
 	return (mod_remove(&modlinkage));
 }
 
 int
 _info(struct modinfo *modinfop)
 {
-	cmn_err(CE_NOTE, "Entering _info!\n");
 	return (mod_info(&modlinkage, modinfop));
 }
 
 int
 pciide_attach(dev_info_t *dip, ddi_attach_cmd_t cmd)
 {
-	cmn_err(CE_NOTE, "Entering pciide_attach!\n");
 	uint16_t cmdreg;
 	ddi_acc_handle_t conf_hdl = NULL;
 	int rc;
+	dev_info_t *cdip;
 
 	if (cmd == DDI_ATTACH) {
-		cmn_err(CE_NOTE, "PCI-IDE running DDI_ATTACH!\n");
-
 		/*
 		 * Make sure bus-mastering is enabled, even if
 		 * BIOS didn't.
@@ -229,7 +225,7 @@ pciide_attach(dev_info_t *dip, ddi_attach_cmd_t cmd)
 		 * bus-mastering could be already enabled by BIOS.
 		 */
 		if (rc != DDI_SUCCESS)
-			return (DDI_SUCCESS);
+			goto ADD_CHILD_NODES;
 
 		cmdreg = pci_config_get16(conf_hdl, PCI_CONF_COMM);
 		if ((cmdreg & PCI_COMM_ME) == 0) {
@@ -238,9 +234,38 @@ pciide_attach(dev_info_t *dip, ddi_attach_cmd_t cmd)
 		}
 		pci_config_teardown(&conf_hdl);
 
+ADD_CHILD_NODES:
+		(void) ndi_prop_update_int(DDI_DEV_T_NONE, dip,
+		    "#address-cells", 1);
+		(void) ndi_prop_update_int(DDI_DEV_T_NONE, dip,
+		    "#size-cells", 0);
+
+		/* sometimes OpenFirmware will append sd nodes, which we don't want */
+		for (cdip = ddi_get_child(dip); cdip;
+	    	 cdip = ddi_get_next_sibling(dip)) {
+			if (ddi_remove_child(cdip, 0) != NDI_SUCCESS) {
+				cmn_err(CE_NOTE, "failed to unconfig %s!\n", 
+						ddi_get_name(cdip));
+				continue;
+			}
+			cmn_err(CE_NOTE, "removed stray %s node from %s nexus\n", 
+					ddi_get_name(cdip), ddi_get_name(dip));
+		}
+
+		/* allocate two child nodes */
+		ndi_devi_alloc_sleep(dip, "sol11ide",
+		    (pnode_t)DEVI_SID_NODEID, &cdip);
+		(void) ndi_prop_update_int(DDI_DEV_T_NONE, cdip,
+		    "reg", 0);
+		(void) ndi_devi_bind_driver(cdip, 0);
+		ndi_devi_alloc_sleep(dip, "sol11ide",
+		    (pnode_t)DEVI_SID_NODEID, &cdip);
+		(void) ndi_prop_update_int(DDI_DEV_T_NONE, cdip,
+		    "reg", 1);
+		(void) ndi_devi_bind_driver(cdip, 0);
+
 		return (DDI_SUCCESS);
 	} else {
-		cmn_err(CE_NOTE, "PCI-IDE failed to attach!\n");
 		return (DDI_FAILURE);
 	}
 }
