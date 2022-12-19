@@ -367,7 +367,7 @@ _init(void)
 		scsi_hba_fini(&modlinkage);
 		ddi_soft_state_fini(&sol11ata_state);
 	}
-	ADBG_TRACE(("Finished patching the bus_ops at %p\n", scsa_bus_ops_p));
+	ADBG_TRACE(("Added bus_ctl %p\n", sol11ata_bus_ctl));
 
 	/*
 	 * Initialize the per driver timer info.
@@ -484,6 +484,9 @@ sol11ata_attach(
 	//cmn_err(CE_NOTE, "sol11ata_attach entered %i\n", sol11ata_debug);
 	#ifdef ATA_DEBUG
 	cmn_err(CE_NOTE, "ATA_DEBUG enabled\n");
+	cmn_err(CE_NOTE, "bus_ctl is %p\n", ((struct dev_info *)(dip))->devi_ops->devo_bus_ops->bus_ctl);
+	cmn_err(CE_NOTE, "devi_bus_ctl is %p\n", (dev_info_t *)DEVI(dip)->devi_bus_ctl);
+	cmn_err(CE_NOTE, "adjusted devi_bus_ctl is %p\n", ((struct dev_info *)((dev_info_t *)DEVI(dip)->devi_bus_ctl))->devi_ops->devo_bus_ops->bus_ctl);
 	#endif
 #ifdef ATA_DEBUG
 	if (sol11ata_debug_attach)
