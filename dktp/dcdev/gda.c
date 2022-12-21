@@ -35,13 +35,13 @@
  *	Generic Direct Attached Device
  */
 
-static char *sol11gda_name(uchar_t cmd, char **cmdvec);
+static char *gda_name(uchar_t cmd, char **cmdvec);
 
 #ifdef	GDA_DEBUG
 #define	DENT	0x0001
 #define	DPKT	0x0002
 #define	DERR	0x0004
-static	int	sol11gda_debug = DERR|DENT|DPKT;
+static	int	gda_debug = DERR|DENT|DPKT;
 
 #endif	/* GDA_DEBUG */
 
@@ -79,8 +79,8 @@ int
 _fini(void)
 {
 #ifdef GDA_DEBUG
-	if (sol11gda_debug & DENT)
-		PRF("sol11gda_fini: call\n");
+	if (gda_debug & DENT)
+		PRF("gda_fini: call\n");
 #endif
 	return (mod_remove(&modlinkage));
 }
@@ -93,7 +93,7 @@ _info(struct modinfo *modinfop)
 
 
 void
-sol11gda_inqfill(char *p, int l, char *s)
+gda_inqfill(char *p, int l, char *s)
 {
 	register unsigned i = 0, c;
 
@@ -110,7 +110,7 @@ sol11gda_inqfill(char *p, int l, char *s)
 }
 
 static char *
-sol11gda_name(uchar_t cmd, char **cmdvec)
+gda_name(uchar_t cmd, char **cmdvec)
 {
 	while (*cmdvec != NULL) {
 		if (cmd == **cmdvec) {
@@ -123,7 +123,7 @@ sol11gda_name(uchar_t cmd, char **cmdvec)
 
 
 struct cmpkt *
-sol11gda_pktprep(opaque_t objp, struct cmpkt *in_pktp, opaque_t dmatoken,
+gda_pktprep(opaque_t objp, struct cmpkt *in_pktp, opaque_t dmatoken,
 	int (*callback)(caddr_t), caddr_t arg)
 {
 	register struct	cmpkt *pktp;
@@ -154,14 +154,14 @@ sol11gda_pktprep(opaque_t objp, struct cmpkt *in_pktp, opaque_t dmatoken,
 
 
 #ifdef GDA_DEBUG
-	if (sol11gda_debug & DPKT)
-		PRF("sol11gda_pktprep: pktp=0x%x \n", pktp);
+	if (gda_debug & DPKT)
+		PRF("gda_pktprep: pktp=0x%x \n", pktp);
 #endif
 	return (pktp);
 }
 
 void
-sol11gda_free(opaque_t objp, struct cmpkt *pktp, struct buf *bp)
+gda_free(opaque_t objp, struct cmpkt *pktp, struct buf *bp)
 {
 	if (pktp) {
 		CTL_MEMFREE(objp, pktp);
@@ -176,7 +176,7 @@ sol11gda_free(opaque_t objp, struct cmpkt *pktp, struct buf *bp)
 }
 
 void
-sol11gda_log(dev_info_t *dev, char *label, uint_t level, const char *fmt, ...)
+gda_log(dev_info_t *dev, char *label, uint_t level, const char *fmt, ...)
 {
 	auto char name[256];
 	auto char buf [256];
@@ -245,7 +245,7 @@ sol11gda_log(dev_info_t *dev, char *label, uint_t level, const char *fmt, ...)
 }
 
 void
-sol11gda_errmsg(struct scsi_device *devp, struct cmpkt *pktp, char *label,
+gda_errmsg(struct scsi_device *devp, struct cmpkt *pktp, char *label,
     int severity, int blkno, int err_blkno,
     char **cmdvec, char **senvec)
 {
@@ -258,27 +258,27 @@ sol11gda_errmsg(struct scsi_device *devp, struct cmpkt *pktp, char *label,
 
 	bzero((caddr_t)buf, 256);
 	(void) sprintf(buf, "Error for command '%s'\tError Level: %s",
-		sol11gda_name(*(uchar_t *)pktp->cp_cdbp, cmdvec),
+		gda_name(*(uchar_t *)pktp->cp_cdbp, cmdvec),
 		error_classes[severity]);
-	sol11gda_log(dev, label, CE_WARN, buf);
+	gda_log(dev, label, CE_WARN, buf);
 
 	bzero((caddr_t)buf, 256);
 	if ((blkno != -1) && (err_blkno != -1)) {
 		(void) sprintf(buf, "Requested Block %d, Error Block: %d\n",
 		    blkno, err_blkno);
-		sol11gda_log(dev, label, CE_CONT, buf);
+		gda_log(dev, label, CE_CONT, buf);
 	}
 
 	bzero((caddr_t)buf, 256);
 	(void) sprintf(buf, "Sense Key: %s\n",
-		sol11gda_name(*(uchar_t *)pktp->cp_scbp, senvec));
+		gda_name(*(uchar_t *)pktp->cp_scbp, senvec));
 
-	sol11gda_log(dev, label, CE_CONT, buf);
+	gda_log(dev, label, CE_CONT, buf);
 	bzero((caddr_t)buf, 256);
 	(void) strcpy(buf, "Vendor '");
-	sol11gda_inqfill(devp->sd_inq->inq_vid, 8, &buf[strlen(buf)]);
+	gda_inqfill(devp->sd_inq->inq_vid, 8, &buf[strlen(buf)]);
 	(void) sprintf(&buf[strlen(buf)],
 		"' error code: 0x%x",
 		*(uchar_t *)pktp->cp_scbp);
-	sol11gda_log(dev, label, CE_CONT, "%s\n", buf);
+	gda_log(dev, label, CE_CONT, "%s\n", buf);
 }

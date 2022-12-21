@@ -51,40 +51,40 @@
 /*
  * Local Function Prototypes
  */
-static void sol11dadk_restart(void *pktp);
-static void sol11dadk_pktcb(struct cmpkt *pktp);
-static void sol11dadk_iodone(struct buf *bp);
-static void sol11dadk_polldone(struct buf *bp);
-static void sol11dadk_setcap(struct sol11dadk *dadkp);
+static void dadk_restart(void *pktp);
+static void dadk_pktcb(struct cmpkt *pktp);
+static void dadk_iodone(struct buf *bp);
+static void dadk_polldone(struct buf *bp);
+static void dadk_setcap(struct dadk *dadkp);
 
-static int sol11dadk_chkerr(struct cmpkt *pktp);
-static int sol11dadk_ioprep(struct sol11dadk *dadkp, struct cmpkt *pktp);
-static int sol11dadk_iosetup(struct sol11dadk *dadkp, struct cmpkt *pktp);
-static int sol11dadk_ioretry(struct cmpkt *pktp, int action);
+static int dadk_chkerr(struct cmpkt *pktp);
+static int dadk_ioprep(struct dadk *dadkp, struct cmpkt *pktp);
+static int dadk_iosetup(struct dadk *dadkp, struct cmpkt *pktp);
+static int dadk_ioretry(struct cmpkt *pktp, int action);
 
-static struct cmpkt *sol11dadk_pktprep(struct sol11dadk *dadkp, struct cmpkt *in_pktp,
+static struct cmpkt *dadk_pktprep(struct dadk *dadkp, struct cmpkt *in_pktp,
     struct buf *bp, void (*cb_func)(struct buf *), int (*func)(caddr_t),
     caddr_t arg);
 
-static int  sol11dadk_pkt(opaque_t com_data, struct buf *bp, int (*func)(caddr_t),
+static int  dadk_pkt(opaque_t com_data, struct buf *bp, int (*func)(caddr_t),
     caddr_t arg);
-static void sol11dadk_transport(opaque_t com_data, struct buf *bp);
+static void dadk_transport(opaque_t com_data, struct buf *bp);
 
-struct tgcom_objops sol11dadk_com_ops = {
+struct tgcom_objops dadk_com_ops = {
 	nodev,
 	nodev,
-	sol11dadk_pkt,
-	sol11dadk_transport,
+	dadk_pkt,
+	dadk_transport,
 	0, 0
 };
 
 /*
- * architecture dependent allocation restrictions for sol11dadk_iob_alloc(). For
- * x86, we'll set dma_attr_addr_hi to sol11dadk_max_phys_addr and dma_attr_sgllen
- * to sol11dadk_sgl_size during _init().
+ * architecture dependent allocation restrictions for dadk_iob_alloc(). For
+ * x86, we'll set dma_attr_addr_hi to dadk_max_phys_addr and dma_attr_sgllen
+ * to dadk_sgl_size during _init().
  */
 #if defined(__sparc)
-static ddi_dma_attr_t sol11dadk_alloc_attr = {
+static ddi_dma_attr_t dadk_alloc_attr = {
 	DMA_ATTR_V0,	/* version number */
 	0x0,		/* lowest usable address */
 	0xFFFFFFFFull,	/* high DMA address range */
@@ -99,7 +99,7 @@ static ddi_dma_attr_t sol11dadk_alloc_attr = {
 	0,		/* DMA transfer flags */
 };
 #elif defined(__x86)
-static ddi_dma_attr_t sol11dadk_alloc_attr = {
+static ddi_dma_attr_t dadk_alloc_attr = {
 	DMA_ATTR_V0,	/* version number */
 	0x0,		/* lowest usable address */
 	0x0,		/* high DMA address range [set in _init()] */
@@ -114,43 +114,43 @@ static ddi_dma_attr_t sol11dadk_alloc_attr = {
 	0,		/* DMA transfer flags */
 };
 
-uint64_t sol11dadk_max_phys_addr = 0xFFFFFFFFull;
-int sol11dadk_sgl_size = 0xFF;
+uint64_t dadk_max_phys_addr = 0xFFFFFFFFull;
+int dadk_sgl_size = 0xFF;
 #endif
 
-static int sol11dadk_rmb_ioctl(struct sol11dadk *dadkp, int cmd, intptr_t arg, int flags,
+static int dadk_rmb_ioctl(struct dadk *dadkp, int cmd, intptr_t arg, int flags,
     int silent);
-static void sol11dadk_rmb_iodone(struct buf *bp);
+static void dadk_rmb_iodone(struct buf *bp);
 
-static int sol11dadk_dk_buf_setup(struct sol11dadk *dadkp, opaque_t *cmdp,
+static int dadk_dk_buf_setup(struct dadk *dadkp, opaque_t *cmdp,
     dev_t dev, enum uio_seg dataspace, int rw);
-static void sol11dadk_dk(struct sol11dadk *dadkp, struct sol11dadkio_rwcmd *scmdp,
+static void dadk_dk(struct dadk *dadkp, struct dadkio_rwcmd *scmdp,
     struct buf *bp);
-static void sol11dadkmin(struct buf *bp);
-static int sol11dadk_dk_strategy(struct buf *bp);
-static void sol11dadk_recorderr(struct cmpkt *pktp, struct sol11dadkio_rwcmd *rwcmdp);
+static void dadkmin(struct buf *bp);
+static int dadk_dk_strategy(struct buf *bp);
+static void dadk_recorderr(struct cmpkt *pktp, struct dadkio_rwcmd *rwcmdp);
 
-struct tgdk_objops sol11dadk_ops = {
-	sol11dadk_init,
-	sol11dadk_free,
-	sol11dadk_probe,
-	sol11dadk_attach,
-	sol11dadk_open,
-	sol11dadk_close,
-	sol11dadk_ioctl,
-	sol11dadk_strategy,
-	sol11dadk_setgeom,
-	sol11dadk_getgeom,
-	sol11dadk_iob_alloc,
-	sol11dadk_iob_free,
-	sol11dadk_iob_htoc,
-	sol11dadk_iob_xfer,
-	sol11dadk_dump,
-	sol11dadk_getphygeom,
-	sol11dadk_set_bbhobj,
-	sol11dadk_check_media,
-	sol11dadk_inquiry,
-	sol11dadk_cleanup,
+struct tgdk_objops dadk_ops = {
+	dadk_init,
+	dadk_free,
+	dadk_probe,
+	dadk_attach,
+	dadk_open,
+	dadk_close,
+	dadk_ioctl,
+	dadk_strategy,
+	dadk_setgeom,
+	dadk_getgeom,
+	dadk_iob_alloc,
+	dadk_iob_free,
+	dadk_iob_htoc,
+	dadk_iob_xfer,
+	dadk_dump,
+	dadk_getphygeom,
+	dadk_set_bbhobj,
+	dadk_check_media,
+	dadk_inquiry,
+	dadk_cleanup,
 	0
 };
 
@@ -164,14 +164,14 @@ struct tgdk_objops sol11dadk_ops = {
 #define	DIO	0x0004
 #define	DGEOM	0x0010
 #define	DSTATE  0x0020
-static	int	sol11dadk_debug = DGEOM;
+static	int	dadk_debug = DGEOM;
 
 #endif	/* DADK_DEBUG */
 
-static int sol11dadk_check_media_time = 3000000;	/* 3 Second State Check */
-static int sol11dadk_dk_maxphys = 0x80000;
+static int dadk_check_media_time = 3000000;	/* 3 Second State Check */
+static int dadk_dk_maxphys = 0x80000;
 
-static char	*sol11dadk_cmds[] = {
+static char	*dadk_cmds[] = {
 	"\000Unknown",			/* unknown 		*/
 	"\001read sector",		/* DCMD_READ 1		*/
 	"\002write sector",		/* DCMD_WRITE 2		*/
@@ -203,7 +203,7 @@ static char	*sol11dadk_cmds[] = {
 	NULL
 };
 
-static char *sol11dadk_sense[] = {
+static char *dadk_sense[] = {
 	"\000Success",			/* DERR_SUCCESS		*/
 	"\001address mark not found",	/* DERR_AMNF		*/
 	"\002track 0 not found",	/* DERR_TKONF		*/
@@ -231,7 +231,7 @@ static char *sol11dadk_sense[] = {
 	NULL
 };
 
-static char *sol11dadk_name = "Disk";
+static char *dadk_name = "Disk";
 
 /*
  *	This is the loadable module wrapper
@@ -253,13 +253,13 @@ int
 _init(void)
 {
 #ifdef DADK_DEBUG
-	if (sol11dadk_debug & DENT)
-		PRF("sol11dadk_init: call\n");
+	if (dadk_debug & DENT)
+		PRF("dadk_init: call\n");
 #endif
 
 #if defined(__x86)
 	/* set the max physical address for iob allocs on x86 */
-	sol11dadk_alloc_attr.dma_attr_addr_hi = sol11dadk_max_phys_addr;
+	dadk_alloc_attr.dma_attr_addr_hi = dadk_max_phys_addr;
 
 	/*
 	 * set the sgllen for iob allocs on x86. If this is set less than
@@ -267,7 +267,7 @@ _init(void)
 	 * alignment), it would force the allocator to try and allocate
 	 * contiguous pages.
 	 */
-	sol11dadk_alloc_attr.dma_attr_sgllen = sol11dadk_sgl_size;
+	dadk_alloc_attr.dma_attr_sgllen = dadk_sgl_size;
 #endif
 
 	return (mod_install(&modlinkage));
@@ -277,8 +277,8 @@ int
 _fini(void)
 {
 #ifdef DADK_DEBUG
-	if (sol11dadk_debug & DENT)
-		PRF("sol11dadk_fini: call\n");
+	if (dadk_debug & DENT)
+		PRF("dadk_fini: call\n");
 #endif
 
 	return (mod_remove(&modlinkage));
@@ -291,33 +291,33 @@ _info(struct modinfo *modinfop)
 }
 
 struct tgdk_obj *
-sol11dadk_create()
+dadk_create()
 {
 	struct tgdk_obj *dkobjp;
-	struct sol11dadk *dadkp;
+	struct dadk *dadkp;
 
 	dkobjp = kmem_zalloc((sizeof (*dkobjp) + sizeof (*dadkp)), KM_NOSLEEP);
 	if (!dkobjp)
 		return (NULL);
-	dadkp = (struct sol11dadk *)(dkobjp+1);
+	dadkp = (struct dadk *)(dkobjp+1);
 
-	dkobjp->tg_ops  = (struct  tgdk_objops *)&sol11dadk_ops;
+	dkobjp->tg_ops  = (struct  tgdk_objops *)&dadk_ops;
 	dkobjp->tg_data = (opaque_t)dadkp;
 	dkobjp->tg_ext = &(dkobjp->tg_extblk);
 	dadkp->dad_extp = &(dkobjp->tg_extblk);
 
 #ifdef DADK_DEBUG
-	if (sol11dadk_debug & DENT)
-		PRF("sol11dadk_create: tgdkobjp= 0x%x dadkp= 0x%x\n", dkobjp, dadkp);
+	if (dadk_debug & DENT)
+		PRF("dadk_create: tgdkobjp= 0x%x dadkp= 0x%x\n", dkobjp, dadkp);
 #endif
 	return (dkobjp);
 }
 
 int
-sol11dadk_init(opaque_t objp, opaque_t devp, opaque_t flcobjp, opaque_t queobjp,
+dadk_init(opaque_t objp, opaque_t devp, opaque_t flcobjp, opaque_t queobjp,
 	opaque_t bbhobjp, void *lkarg)
 {
-	struct sol11dadk *dadkp = (struct sol11dadk *)objp;
+	struct dadk *dadkp = (struct dadk *)objp;
 	struct scsi_device *sdevp = (struct scsi_device *)devp;
 
 	dadkp->dad_sd = devp;
@@ -326,7 +326,7 @@ sol11dadk_init(opaque_t objp, opaque_t devp, opaque_t flcobjp, opaque_t queobjp,
 
 	/* initialize the communication object */
 	dadkp->dad_com.com_data = (opaque_t)dadkp;
-	dadkp->dad_com.com_ops  = &sol11dadk_com_ops;
+	dadkp->dad_com.com_ops  = &dadk_com_ops;
 
 	dadkp->dad_bbhobjp = bbhobjp;
 	BBH_INIT(bbhobjp);
@@ -336,20 +336,20 @@ sol11dadk_init(opaque_t objp, opaque_t devp, opaque_t flcobjp, opaque_t queobjp,
 }
 
 int
-sol11dadk_free(struct tgdk_obj *dkobjp)
+dadk_free(struct tgdk_obj *dkobjp)
 {
 	TGDK_CLEANUP(dkobjp);
-	kmem_free(dkobjp, (sizeof (*dkobjp) + sizeof (struct sol11dadk)));
+	kmem_free(dkobjp, (sizeof (*dkobjp) + sizeof (struct dadk)));
 
 	return (DDI_SUCCESS);
 }
 
 void
-sol11dadk_cleanup(struct tgdk_obj *dkobjp)
+dadk_cleanup(struct tgdk_obj *dkobjp)
 {
-	struct sol11dadk *dadkp;
+	struct dadk *dadkp;
 
-	dadkp = (struct sol11dadk *)(dkobjp->tg_data);
+	dadkp = (struct dadk *)(dkobjp->tg_data);
 	if (dadkp->dad_sd)
 		dadkp->dad_sd->sd_private = NULL;
 	if (dadkp->dad_bbhobjp) {
@@ -364,9 +364,9 @@ sol11dadk_cleanup(struct tgdk_obj *dkobjp)
 
 /* ARGSUSED */
 int
-sol11dadk_probe(opaque_t objp, int kmsflg)
+dadk_probe(opaque_t objp, int kmsflg)
 {
-	struct sol11dadk *dadkp = (struct sol11dadk *)objp;
+	struct dadk *dadkp = (struct dadk *)objp;
 	struct scsi_device *devp;
 	char   name[80];
 
@@ -403,11 +403,11 @@ sol11dadk_probe(opaque_t objp, int kmsflg)
 
 	/* display the device name */
 	(void) strcpy(name, "Vendor '");
-	sol11gda_inqfill((caddr_t)devp->sd_inq->inq_vid, 8, &name[strlen(name)]);
+	gda_inqfill((caddr_t)devp->sd_inq->inq_vid, 8, &name[strlen(name)]);
 	(void) strcat(name, "' Product '");
-	sol11gda_inqfill((caddr_t)devp->sd_inq->inq_pid, 16, &name[strlen(name)]);
+	gda_inqfill((caddr_t)devp->sd_inq->inq_pid, 16, &name[strlen(name)]);
 	(void) strcat(name, "'");
-	sol11gda_log(devp->sd_dev, sol11dadk_name, CE_NOTE, "!<%s>\n", name);
+	gda_log(devp->sd_dev, dadk_name, CE_NOTE, "!<%s>\n", name);
 
 	return (DDI_PROBE_SUCCESS);
 }
@@ -415,15 +415,15 @@ sol11dadk_probe(opaque_t objp, int kmsflg)
 
 /* ARGSUSED */
 int
-sol11dadk_attach(opaque_t objp)
+dadk_attach(opaque_t objp)
 {
 	return (DDI_SUCCESS);
 }
 
 int
-sol11dadk_set_bbhobj(opaque_t objp, opaque_t bbhobjp)
+dadk_set_bbhobj(opaque_t objp, opaque_t bbhobjp)
 {
-	struct sol11dadk *dadkp = (struct sol11dadk *)objp;
+	struct dadk *dadkp = (struct dadk *)objp;
 	/* free the old bbh object */
 	if (dadkp->dad_bbhobjp)
 		BBH_FREE(dadkp->dad_bbhobjp);
@@ -437,9 +437,9 @@ sol11dadk_set_bbhobj(opaque_t objp, opaque_t bbhobjp)
 
 /* ARGSUSED */
 int
-sol11dadk_open(opaque_t objp, int flag)
+dadk_open(opaque_t objp, int flag)
 {
-	struct sol11dadk *dadkp = (struct sol11dadk *)objp;
+	struct dadk *dadkp = (struct dadk *)objp;
 	int error;
 	int wce;
 
@@ -455,9 +455,9 @@ sol11dadk_open(opaque_t objp, int flag)
 	    cv_broadcast(&dadkp->dad_state_cv);
 	    mutex_exit(&dadkp->dad_mutex);
 
-	    if (sol11dadk_rmb_ioctl(dadkp, DCMD_START_MOTOR, 0, 0, DADK_SILENT) ||
-		sol11dadk_rmb_ioctl(dadkp, DCMD_LOCK, 0, 0, DADK_SILENT) ||
-		sol11dadk_rmb_ioctl(dadkp, DCMD_UPDATE_GEOM, 0, 0, DADK_SILENT)) {
+	    if (dadk_rmb_ioctl(dadkp, DCMD_START_MOTOR, 0, 0, DADK_SILENT) ||
+		dadk_rmb_ioctl(dadkp, DCMD_LOCK, 0, 0, DADK_SILENT) ||
+		dadk_rmb_ioctl(dadkp, DCMD_UPDATE_GEOM, 0, 0, DADK_SILENT)) {
 		    return (DDI_FAILURE);
 	    }
 
@@ -496,7 +496,7 @@ sol11dadk_open(opaque_t objp, int flag)
 	if (dadkp->dad_phyg.g_cap == 0)
 		return (DDI_FAILURE);
 
-	sol11dadk_setcap(dadkp);
+	dadk_setcap(dadkp);
 
 	/* start profiling */
 	FLC_START_KSTAT(dadkp->dad_flcobjp, "disk",
@@ -506,7 +506,7 @@ sol11dadk_open(opaque_t objp, int flag)
 }
 
 static void
-sol11dadk_setcap(struct sol11dadk *dadkp)
+dadk_setcap(struct dadk *dadkp)
 {
 	int	 totsize;
 	int	 i;
@@ -534,23 +534,23 @@ sol11dadk_setcap(struct sol11dadk *dadkp)
 
 
 int
-sol11dadk_close(opaque_t objp)
+dadk_close(opaque_t objp)
 {
-	struct sol11dadk *dadkp = (struct sol11dadk *)objp;
+	struct dadk *dadkp = (struct dadk *)objp;
 
 	if (dadkp->dad_rmb) {
-		(void) sol11dadk_rmb_ioctl(dadkp, DCMD_STOP_MOTOR, 0, 0,
+		(void) dadk_rmb_ioctl(dadkp, DCMD_STOP_MOTOR, 0, 0,
 		    DADK_SILENT);
-		(void) sol11dadk_rmb_ioctl(dadkp, DCMD_UNLOCK, 0, 0, DADK_SILENT);
+		(void) dadk_rmb_ioctl(dadkp, DCMD_UNLOCK, 0, 0, DADK_SILENT);
 	}
 	FLC_STOP_KSTAT(dadkp->dad_flcobjp);
 	return (DDI_SUCCESS);
 }
 
 int
-sol11dadk_strategy(opaque_t objp, struct buf *bp)
+dadk_strategy(opaque_t objp, struct buf *bp)
 {
-	struct sol11dadk *dadkp = (struct sol11dadk *)objp;
+	struct dadk *dadkp = (struct dadk *)objp;
 
 	if (dadkp->dad_rdonly && !(bp->b_flags & B_READ)) {
 		bioerror(bp, EROFS);
@@ -569,9 +569,9 @@ sol11dadk_strategy(opaque_t objp, struct buf *bp)
 }
 
 int
-sol11dadk_dump(opaque_t objp, struct buf *bp)
+dadk_dump(opaque_t objp, struct buf *bp)
 {
-	struct sol11dadk *dadkp = (struct sol11dadk *)objp;
+	struct dadk *dadkp = (struct dadk *)objp;
 	struct cmpkt *pktp;
 
 	if (dadkp->dad_rdonly) {
@@ -586,7 +586,7 @@ sol11dadk_dump(opaque_t objp, struct buf *bp)
 
 	SET_BP_SEC(bp, (LBLK2SEC(GET_BP_SEC(bp), dadkp->dad_blkshf)));
 
-	pktp = sol11dadk_pktprep(dadkp, NULL, bp, sol11dadk_polldone, NULL, NULL);
+	pktp = dadk_pktprep(dadkp, NULL, bp, dadk_polldone, NULL, NULL);
 	if (!pktp) {
 		cmn_err(CE_WARN, "no resources for dumping");
 		bioerror(bp, EIO);
@@ -594,28 +594,28 @@ sol11dadk_dump(opaque_t objp, struct buf *bp)
 	}
 	pktp->cp_flags |= CPF_NOINTR;
 
-	(void) sol11dadk_ioprep(dadkp, pktp);
-	sol11dadk_transport(dadkp, bp);
+	(void) dadk_ioprep(dadkp, pktp);
+	dadk_transport(dadkp, bp);
 	pktp->cp_byteleft -= pktp->cp_bytexfer;
 
 	while (geterror(bp) == 0 && pktp->cp_byteleft != 0) {
-		(void) sol11dadk_iosetup(dadkp, pktp);
-		sol11dadk_transport(dadkp, bp);
+		(void) dadk_iosetup(dadkp, pktp);
+		dadk_transport(dadkp, bp);
 		pktp->cp_byteleft -= pktp->cp_bytexfer;
 	}
 
 	if (pktp->cp_private)
 		BBH_FREEHANDLE(dadkp->dad_bbhobjp, pktp->cp_private);
-	sol11gda_free(dadkp->dad_ctlobjp, pktp, NULL);
+	gda_free(dadkp->dad_ctlobjp, pktp, NULL);
 	return (DDI_SUCCESS);
 }
 
 /* ARGSUSED  */
 int
-sol11dadk_ioctl(opaque_t objp, dev_t dev, int cmd, intptr_t arg, int flag,
+dadk_ioctl(opaque_t objp, dev_t dev, int cmd, intptr_t arg, int flag,
 	cred_t *cred_p, int *rval_p)
 {
-	struct sol11dadk *dadkp = (struct sol11dadk *)objp;
+	struct dadk *dadkp = (struct dadk *)objp;
 
 	switch (cmd) {
 	case DKIOCGETDEF:
@@ -669,21 +669,21 @@ sol11dadk_ioctl(opaque_t objp, dev_t dev, int cmd, intptr_t arg, int flag,
 	    }
 	case DIOCTL_RWCMD:
 	    {
-		struct sol11dadkio_rwcmd *rwcmdp;
+		struct dadkio_rwcmd *rwcmdp;
 		int status, rw;
 
 		/*
-		 * copied in by sol11cmdk and, if necessary, converted to the
+		 * copied in by cmdk and, if necessary, converted to the
 		 * correct datamodel
 		 */
-		rwcmdp = (struct sol11dadkio_rwcmd *)(intptr_t)arg;
+		rwcmdp = (struct dadkio_rwcmd *)(intptr_t)arg;
 
 		/*
 		 * handle the complex cases here; we pass these
 		 * through to the driver, which will queue them and
 		 * handle the requests asynchronously.  The simpler
 		 * cases ,which can return immediately, fail here, and
-		 * the request reverts to the sol11dadk_ioctl routine, while
+		 * the request reverts to the dadk_ioctl routine, while
 		 *  will reroute them directly to the ata driver.
 		 */
 		switch (rwcmdp->cmd) {
@@ -692,7 +692,7 @@ sol11dadk_ioctl(opaque_t objp, dev_t dev, int cmd, intptr_t arg, int flag,
 			case DADKIO_RWCMD_WRITE:
 				rw = ((rwcmdp->cmd == DADKIO_RWCMD_WRITE) ?
 				    B_WRITE : B_READ);
-				status = sol11dadk_dk_buf_setup(dadkp,
+				status = dadk_dk_buf_setup(dadkp,
 				    (opaque_t)rwcmdp, dev, ((flag &FKIOCTL) ?
 				    UIO_SYSSPACE : UIO_USERSPACE), rw);
 				return (status);
@@ -755,16 +755,16 @@ sol11dadk_ioctl(opaque_t objp, dev_t dev, int cmd, intptr_t arg, int flag,
 				 * to the b_iodone func.
 				 */
 				bp->b_list = (struct buf *)dkc2;
-				bp->b_iodone = sol11dadk_flushdone;
+				bp->b_iodone = dadk_flushdone;
 				is_sync = 0;
 			}
 
 			/*
 			 * Setup command pkt
-			 * sol11dadk_pktprep() can't fail since DDI_DMA_SLEEP set
+			 * dadk_pktprep() can't fail since DDI_DMA_SLEEP set
 			 */
-			pktp = sol11dadk_pktprep(dadkp, NULL, bp,
-			    sol11dadk_iodone, DDI_DMA_SLEEP, NULL);
+			pktp = dadk_pktprep(dadkp, NULL, bp,
+			    dadk_iodone, DDI_DMA_SLEEP, NULL);
 
 			pktp->cp_time = DADK_FLUSH_CACHE_TIME;
 
@@ -792,25 +792,25 @@ sol11dadk_ioctl(opaque_t objp, dev_t dev, int cmd, intptr_t arg, int flag,
 
 	switch (cmd) {
 	case CDROMSTOP:
-		return (sol11dadk_rmb_ioctl(dadkp, DCMD_STOP_MOTOR, 0,
+		return (dadk_rmb_ioctl(dadkp, DCMD_STOP_MOTOR, 0,
 			0, DADK_SILENT));
 	case CDROMSTART:
-		return (sol11dadk_rmb_ioctl(dadkp, DCMD_START_MOTOR, 0,
+		return (dadk_rmb_ioctl(dadkp, DCMD_START_MOTOR, 0,
 			0, DADK_SILENT));
 	case DKIOCLOCK:
-		return (sol11dadk_rmb_ioctl(dadkp, DCMD_LOCK, 0, 0, DADK_SILENT));
+		return (dadk_rmb_ioctl(dadkp, DCMD_LOCK, 0, 0, DADK_SILENT));
 	case DKIOCUNLOCK:
-		return (sol11dadk_rmb_ioctl(dadkp, DCMD_UNLOCK, 0, 0, DADK_SILENT));
+		return (dadk_rmb_ioctl(dadkp, DCMD_UNLOCK, 0, 0, DADK_SILENT));
 	case DKIOCEJECT:
 	case CDROMEJECT:
 		{
 			int ret;
 
-			if (ret = sol11dadk_rmb_ioctl(dadkp, DCMD_UNLOCK, 0, 0,
+			if (ret = dadk_rmb_ioctl(dadkp, DCMD_UNLOCK, 0, 0,
 				DADK_SILENT)) {
 				return (ret);
 			}
-			if (ret = sol11dadk_rmb_ioctl(dadkp, DCMD_EJECT, 0, 0,
+			if (ret = dadk_rmb_ioctl(dadkp, DCMD_EJECT, 0, 0,
 				DADK_SILENT)) {
 				return (ret);
 			}
@@ -861,11 +861,11 @@ sol11dadk_ioctl(opaque_t objp, dev_t dev, int cmd, intptr_t arg, int flag,
 		cmd = DCMD_READOFFSET;
 		break;
 	}
-	return (sol11dadk_rmb_ioctl(dadkp, cmd, arg, flag, 0));
+	return (dadk_rmb_ioctl(dadkp, cmd, arg, flag, 0));
 }
 
 int
-sol11dadk_flushdone(struct buf *bp)
+dadk_flushdone(struct buf *bp)
 {
 	struct dk_callback *dkc = (struct dk_callback *)bp->b_list;
 
@@ -879,9 +879,9 @@ sol11dadk_flushdone(struct buf *bp)
 }
 
 int
-sol11dadk_getphygeom(opaque_t objp, struct tgdk_geom *dkgeom_p)
+dadk_getphygeom(opaque_t objp, struct tgdk_geom *dkgeom_p)
 {
-	struct sol11dadk *dadkp = (struct sol11dadk *)objp;
+	struct dadk *dadkp = (struct dadk *)objp;
 
 	bcopy((caddr_t)&dadkp->dad_phyg, (caddr_t)dkgeom_p,
 	    sizeof (struct tgdk_geom));
@@ -889,18 +889,18 @@ sol11dadk_getphygeom(opaque_t objp, struct tgdk_geom *dkgeom_p)
 }
 
 int
-sol11dadk_getgeom(opaque_t objp, struct tgdk_geom *dkgeom_p)
+dadk_getgeom(opaque_t objp, struct tgdk_geom *dkgeom_p)
 {
-	struct sol11dadk *dadkp = (struct sol11dadk *)objp;
+	struct dadk *dadkp = (struct dadk *)objp;
 	bcopy((caddr_t)&dadkp->dad_logg, (caddr_t)dkgeom_p,
 	    sizeof (struct tgdk_geom));
 	return (DDI_SUCCESS);
 }
 
 int
-sol11dadk_setgeom(opaque_t objp, struct tgdk_geom *dkgeom_p)
+dadk_setgeom(opaque_t objp, struct tgdk_geom *dkgeom_p)
 {
-	struct sol11dadk *dadkp = (struct sol11dadk *)objp;
+	struct dadk *dadkp = (struct dadk *)objp;
 
 	dadkp->dad_logg.g_cyl = dkgeom_p->g_cyl;
 	dadkp->dad_logg.g_head = dkgeom_p->g_head;
@@ -911,9 +911,9 @@ sol11dadk_setgeom(opaque_t objp, struct tgdk_geom *dkgeom_p)
 
 
 tgdk_iob_handle
-sol11dadk_iob_alloc(opaque_t objp, daddr_t blkno, ssize_t xfer, int kmsflg)
+dadk_iob_alloc(opaque_t objp, daddr_t blkno, ssize_t xfer, int kmsflg)
 {
-	struct sol11dadk *dadkp = (struct sol11dadk *)objp;
+	struct dadk *dadkp = (struct dadk *)objp;
 	struct buf *bp;
 	struct tgdk_iob *iobp;
 	size_t rlen;
@@ -938,7 +938,7 @@ sol11dadk_iob_alloc(opaque_t objp, daddr_t blkno, ssize_t xfer, int kmsflg)
 	 * is obsolete and we want more flexibility in controlling the DMA
 	 * address constraints..
 	 */
-	if (i_ddi_mem_alloc((dadkp->dad_sd)->sd_dev, &sol11dadk_alloc_attr,
+	if (i_ddi_mem_alloc((dadkp->dad_sd)->sd_dev, &dadk_alloc_attr,
 	    (size_t)iobp->b_pbytecnt, ((kmsflg == KM_SLEEP) ? 1 : 0), 0, NULL,
 	    &bp->b_un.b_addr, &rlen, NULL) != DDI_SUCCESS) {
 		freerbuf(bp);
@@ -956,7 +956,7 @@ sol11dadk_iob_alloc(opaque_t objp, daddr_t blkno, ssize_t xfer, int kmsflg)
 
 /* ARGSUSED */
 int
-sol11dadk_iob_free(opaque_t objp, struct tgdk_iob *iobp)
+dadk_iob_free(opaque_t objp, struct tgdk_iob *iobp)
 {
 	struct buf *bp;
 
@@ -974,16 +974,16 @@ sol11dadk_iob_free(opaque_t objp, struct tgdk_iob *iobp)
 
 /* ARGSUSED */
 caddr_t
-sol11dadk_iob_htoc(opaque_t objp, struct tgdk_iob *iobp)
+dadk_iob_htoc(opaque_t objp, struct tgdk_iob *iobp)
 {
 	return (iobp->b_bp->b_un.b_addr+iobp->b_pbyteoff);
 }
 
 
 caddr_t
-sol11dadk_iob_xfer(opaque_t objp, struct tgdk_iob *iobp, int rw)
+dadk_iob_xfer(opaque_t objp, struct tgdk_iob *iobp, int rw)
 {
-	struct sol11dadk	*dadkp = (struct sol11dadk *)objp;
+	struct dadk	*dadkp = (struct dadk *)objp;
 	struct buf	*bp;
 	int		err;
 
@@ -1013,37 +1013,37 @@ sol11dadk_iob_xfer(opaque_t objp, struct tgdk_iob *iobp, int rw)
 }
 
 static void
-sol11dadk_transport(opaque_t com_data, struct buf *bp)
+dadk_transport(opaque_t com_data, struct buf *bp)
 {
-	struct sol11dadk *dadkp = (struct sol11dadk *)com_data;
+	struct dadk *dadkp = (struct dadk *)com_data;
 
 	if (CTL_TRANSPORT(dadkp->dad_ctlobjp, GDA_BP_PKT(bp)) ==
 	    CTL_SEND_SUCCESS)
 		return;
-	sol11dadk_restart((void*)GDA_BP_PKT(bp));
+	dadk_restart((void*)GDA_BP_PKT(bp));
 }
 
 static int
-sol11dadk_pkt(opaque_t com_data, struct buf *bp, int (*func)(caddr_t), caddr_t arg)
+dadk_pkt(opaque_t com_data, struct buf *bp, int (*func)(caddr_t), caddr_t arg)
 {
 	struct cmpkt *pktp;
-	struct sol11dadk *dadkp = (struct sol11dadk *)com_data;
+	struct dadk *dadkp = (struct dadk *)com_data;
 
 	if (GDA_BP_PKT(bp))
 		return (DDI_SUCCESS);
 
-	pktp = sol11dadk_pktprep(dadkp, NULL, bp, sol11dadk_iodone, func, arg);
+	pktp = dadk_pktprep(dadkp, NULL, bp, dadk_iodone, func, arg);
 	if (!pktp)
 		return (DDI_FAILURE);
 
-	return (sol11dadk_ioprep(dadkp, pktp));
+	return (dadk_ioprep(dadkp, pktp));
 }
 
 /*
  * Read, Write preparation
  */
 static int
-sol11dadk_ioprep(struct sol11dadk *dadkp, struct cmpkt *pktp)
+dadk_ioprep(struct dadk *dadkp, struct cmpkt *pktp)
 {
 	struct buf *bp;
 
@@ -1059,11 +1059,11 @@ sol11dadk_ioprep(struct sol11dadk *dadkp, struct cmpkt *pktp)
 
 	/* setup the bad block list handle */
 	pktp->cp_private = BBH_GETHANDLE(dadkp->dad_bbhobjp, bp);
-	return (sol11dadk_iosetup(dadkp, pktp));
+	return (dadk_iosetup(dadkp, pktp));
 }
 
 static int
-sol11dadk_iosetup(struct sol11dadk *dadkp, struct cmpkt *pktp)
+dadk_iosetup(struct dadk *dadkp, struct cmpkt *pktp)
 {
 	struct buf	*bp;
 	bbh_cookie_t	bbhckp;
@@ -1104,16 +1104,16 @@ sol11dadk_iosetup(struct sol11dadk *dadkp, struct cmpkt *pktp)
 }
 
 static struct cmpkt *
-sol11dadk_pktprep(struct sol11dadk *dadkp, struct cmpkt *in_pktp, struct buf *bp,
+dadk_pktprep(struct dadk *dadkp, struct cmpkt *in_pktp, struct buf *bp,
     void (*cb_func)(struct buf *), int (*func)(caddr_t), caddr_t arg)
 {
 	struct cmpkt *pktp;
 
-	pktp = sol11gda_pktprep(dadkp->dad_ctlobjp, in_pktp, (opaque_t)bp, func,
+	pktp = gda_pktprep(dadkp->dad_ctlobjp, in_pktp, (opaque_t)bp, func,
 	    arg);
 
 	if (pktp) {
-		pktp->cp_callback = sol11dadk_pktcb;
+		pktp->cp_callback = dadk_pktcb;
 		pktp->cp_time = DADK_IO_TIME;
 		pktp->cp_flags = 0;
 		pktp->cp_iodone = cb_func;
@@ -1126,20 +1126,20 @@ sol11dadk_pktprep(struct sol11dadk *dadkp, struct cmpkt *in_pktp, struct buf *bp
 
 
 static void
-sol11dadk_restart(void *vpktp)
+dadk_restart(void *vpktp)
 {
 	struct cmpkt *pktp = (struct cmpkt *)vpktp;
 
-	if (sol11dadk_ioretry(pktp, QUE_COMMAND) == JUST_RETURN)
+	if (dadk_ioretry(pktp, QUE_COMMAND) == JUST_RETURN)
 		return;
 	pktp->cp_iodone(pktp->cp_bp);
 }
 
 static int
-sol11dadk_ioretry(struct cmpkt *pktp, int action)
+dadk_ioretry(struct cmpkt *pktp, int action)
 {
 	struct buf *bp;
-	struct sol11dadk *dadkp = PKT2DADK(pktp);
+	struct dadk *dadkp = PKT2DADK(pktp);
 
 	switch (action) {
 	case QUE_COMMAND:
@@ -1149,12 +1149,12 @@ sol11dadk_ioretry(struct cmpkt *pktp, int action)
 				CTL_SEND_SUCCESS) {
 				return (JUST_RETURN);
 			}
-			sol11gda_log(dadkp->dad_sd->sd_dev, sol11dadk_name,
+			gda_log(dadkp->dad_sd->sd_dev, dadk_name,
 				CE_WARN,
 				"transport of command fails\n");
 		} else
-			sol11gda_log(dadkp->dad_sd->sd_dev,
-				sol11dadk_name, CE_WARN,
+			gda_log(dadkp->dad_sd->sd_dev,
+				dadk_name, CE_WARN,
 				"exceeds maximum number of retries\n");
 		bioerror(pktp->cp_bp, ENXIO);
 		/*FALLTHROUGH*/
@@ -1187,12 +1187,12 @@ sol11dadk_ioretry(struct cmpkt *pktp, int action)
 
 
 static void
-sol11dadk_pktcb(struct cmpkt *pktp)
+dadk_pktcb(struct cmpkt *pktp)
 {
 	int action;
-	struct sol11dadkio_rwcmd *rwcmdp;
+	struct dadkio_rwcmd *rwcmdp;
 
-	rwcmdp = (struct sol11dadkio_rwcmd *)pktp->cp_passthru;  /* ioctl packet */
+	rwcmdp = (struct dadkio_rwcmd *)pktp->cp_passthru;  /* ioctl packet */
 
 	if (pktp->cp_reason == CPS_SUCCESS) {
 		if (rwcmdp && (rwcmdp != (opaque_t)DADK_SILENT))
@@ -1203,13 +1203,13 @@ sol11dadk_pktcb(struct cmpkt *pktp)
 
 	if (rwcmdp && (rwcmdp != (opaque_t)DADK_SILENT)) {
 		if (pktp->cp_reason == CPS_CHKERR)
-			sol11dadk_recorderr(pktp, rwcmdp);
-		sol11dadk_iodone(pktp->cp_bp);
+			dadk_recorderr(pktp, rwcmdp);
+		dadk_iodone(pktp->cp_bp);
 		return;
 	}
 
 	if (pktp->cp_reason == CPS_CHKERR)
-		action = sol11dadk_chkerr(pktp);
+		action = dadk_chkerr(pktp);
 	else
 		action = COMMAND_DONE_ERROR;
 
@@ -1217,7 +1217,7 @@ sol11dadk_pktcb(struct cmpkt *pktp)
 		return;
 
 	if (action != COMMAND_DONE) {
-		if ((sol11dadk_ioretry(pktp, action)) == JUST_RETURN)
+		if ((dadk_ioretry(pktp, action)) == JUST_RETURN)
 			return;
 	}
 	pktp->cp_iodone(pktp->cp_bp);
@@ -1225,7 +1225,7 @@ sol11dadk_pktcb(struct cmpkt *pktp)
 
 
 
-static struct sol11dadkio_derr sol11dadk_errtab[] = {
+static struct dadkio_derr dadk_errtab[] = {
 	{COMMAND_DONE, GDA_INFORMATIONAL},	/*  0 DERR_SUCCESS	*/
 	{QUE_COMMAND, GDA_FATAL},		/*  1 DERR_AMNF		*/
 	{QUE_COMMAND, GDA_FATAL},		/*  2 DERR_TKONF	*/
@@ -1253,10 +1253,10 @@ static struct sol11dadkio_derr sol11dadk_errtab[] = {
 };
 
 static int
-sol11dadk_chkerr(struct cmpkt *pktp)
+dadk_chkerr(struct cmpkt *pktp)
 {
 	int err_blkno;
-	struct sol11dadk *dadkp;
+	struct dadk *dadkp;
 	int scb;
 
 	if (*(char *)pktp->cp_scbp == DERR_SUCCESS)
@@ -1278,22 +1278,22 @@ sol11dadk_chkerr(struct cmpkt *pktp)
 		return (COMMAND_DONE);
 	}
 	if (pktp->cp_passthru == NULL) {
-		sol11gda_errmsg(dadkp->dad_sd, pktp, sol11dadk_name,
-		    sol11dadk_errtab[scb].d_severity, pktp->cp_srtsec,
-		    err_blkno, sol11dadk_cmds, sol11dadk_sense);
+		gda_errmsg(dadkp->dad_sd, pktp, dadk_name,
+		    dadk_errtab[scb].d_severity, pktp->cp_srtsec,
+		    err_blkno, dadk_cmds, dadk_sense);
 	}
 
 	if (scb == DERR_BUSY) {
-		(void) timeout(sol11dadk_restart, (void *)pktp, DADK_BSY_TIMEOUT);
+		(void) timeout(dadk_restart, (void *)pktp, DADK_BSY_TIMEOUT);
 	}
 
-	return (sol11dadk_errtab[scb].d_action);
+	return (dadk_errtab[scb].d_action);
 }
 
 static void
-sol11dadk_recorderr(struct cmpkt *pktp, struct sol11dadkio_rwcmd *rwcmdp)
+dadk_recorderr(struct cmpkt *pktp, struct dadkio_rwcmd *rwcmdp)
 {
-	struct sol11dadk *dadkp;
+	struct dadk *dadkp;
 	int scb;
 
 	dadkp = PKT2DADK(pktp);
@@ -1336,22 +1336,22 @@ sol11dadk_recorderr(struct cmpkt *pktp, struct sol11dadkio_rwcmd *rwcmdp)
 
 	if (rwcmdp->flags & DADKIO_FLAG_SILENT)
 		return;
-	sol11gda_errmsg(dadkp->dad_sd, pktp, sol11dadk_name, sol11dadk_errtab[scb].d_severity,
+	gda_errmsg(dadkp->dad_sd, pktp, dadk_name, dadk_errtab[scb].d_severity,
 		rwcmdp->blkaddr, rwcmdp->status.failed_blk,
-		sol11dadk_cmds, sol11dadk_sense);
+		dadk_cmds, dadk_sense);
 }
 
 /*ARGSUSED*/
 static void
-sol11dadk_polldone(struct buf *bp)
+dadk_polldone(struct buf *bp)
 {
 }
 
 static void
-sol11dadk_iodone(struct buf *bp)
+dadk_iodone(struct buf *bp)
 {
 	struct cmpkt *pktp;
-	struct sol11dadk *dadkp;
+	struct dadk *dadkp;
 
 	pktp  = GDA_BP_PKT(bp);
 	dadkp = PKT2DADK(pktp);
@@ -1360,13 +1360,13 @@ sol11dadk_iodone(struct buf *bp)
 	pktp->cp_byteleft -= pktp->cp_bytexfer;
 	if (geterror(bp) == 0 && pktp->cp_byteleft != 0) {
 		pktp->cp_retry = 0;
-		(void) sol11dadk_iosetup(dadkp, pktp);
+		(void) dadk_iosetup(dadkp, pktp);
 
 
 	/* 	transport the next one */
 		if (CTL_TRANSPORT(dadkp->dad_ctlobjp, pktp) == CTL_SEND_SUCCESS)
 			return;
-		if ((sol11dadk_ioretry(pktp, QUE_COMMAND)) == JUST_RETURN)
+		if ((dadk_ioretry(pktp, QUE_COMMAND)) == JUST_RETURN)
 			return;
 	}
 
@@ -1376,21 +1376,21 @@ sol11dadk_iodone(struct buf *bp)
 	/* free pkt */
 	if (pktp->cp_private)
 		BBH_FREEHANDLE(dadkp->dad_bbhobjp, pktp->cp_private);
-	sol11gda_free(dadkp->dad_ctlobjp, pktp, NULL);
+	gda_free(dadkp->dad_ctlobjp, pktp, NULL);
 	biodone(bp);
 }
 
 int
-sol11dadk_check_media(opaque_t objp, int *state)
+dadk_check_media(opaque_t objp, int *state)
 {
-	struct sol11dadk *dadkp = (struct sol11dadk *)objp;
+	struct dadk *dadkp = (struct dadk *)objp;
 
 	if (!dadkp->dad_rmb) {
 		return (ENXIO);
 	}
 #ifdef DADK_DEBUG
-	if (sol11dadk_debug & DSTATE)
-		PRF("sol11dadk_check_media: user state %x disk state %x\n",
+	if (dadk_debug & DSTATE)
+		PRF("dadk_check_media: user state %x disk state %x\n",
 			*state, dadkp->dad_iostate);
 #endif
 	/*
@@ -1407,9 +1407,9 @@ sol11dadk_check_media(opaque_t objp, int *state)
 	mutex_enter(&dadkp->dad_mutex);
 	if (dadkp->dad_thread_cnt == 0) {
 		/*
-		 * One thread per removable sol11dadk device
+		 * One thread per removable dadk device
 		 */
-		(void) thread_create(NULL, 0, sol11dadk_watch_thread, dadkp, 0, &p0,
+		(void) thread_create(NULL, 0, dadk_watch_thread, dadkp, 0, &p0,
 		    TS_RUN, v.v_maxsyspri - 2);
 	}
 	dadkp->dad_thread_cnt++;
@@ -1434,15 +1434,15 @@ sol11dadk_check_media(opaque_t objp, int *state)
 #define	MEDIA_ACCESS_DELAY 2000000
 
 static void
-sol11dadk_watch_thread(struct sol11dadk *dadkp)
+dadk_watch_thread(struct dadk *dadkp)
 {
 	enum dkio_state state;
 	int interval;
 
-	interval = drv_usectohz(sol11dadk_check_media_time);
+	interval = drv_usectohz(dadk_check_media_time);
 
 	do {
-		if (sol11dadk_rmb_ioctl(dadkp, DCMD_GET_STATE, (intptr_t)&state, 0,
+		if (dadk_rmb_ioctl(dadkp, DCMD_GET_STATE, (intptr_t)&state, 0,
 		    DADK_SILENT)) {
 			/*
 			 * Assume state remained the same
@@ -1476,9 +1476,9 @@ sol11dadk_watch_thread(struct sol11dadk *dadkp)
 }
 
 int
-sol11dadk_inquiry(opaque_t objp, opaque_t *inqpp)
+dadk_inquiry(opaque_t objp, opaque_t *inqpp)
 {
-	struct sol11dadk *dadkp = (struct sol11dadk *)objp;
+	struct dadk *dadkp = (struct dadk *)objp;
 	struct scsi_inquiry **sinqpp = (struct scsi_inquiry **)inqpp;
 
 	if (dadkp && dadkp->dad_sd && dadkp->dad_sd->sd_inq) {
@@ -1490,7 +1490,7 @@ sol11dadk_inquiry(opaque_t objp, opaque_t *inqpp)
 }
 
 static int
-sol11dadk_rmb_ioctl(struct sol11dadk *dadkp, int cmd, intptr_t arg, int flags, int silent)
+dadk_rmb_ioctl(struct dadk *dadkp, int cmd, intptr_t arg, int flags, int silent)
 
 {
 	struct buf *bp;
@@ -1500,7 +1500,7 @@ sol11dadk_rmb_ioctl(struct sol11dadk *dadkp, int cmd, intptr_t arg, int flags, i
 	if ((bp = getrbuf(KM_SLEEP)) == NULL) {
 		return (ENOMEM);
 	}
-	pktp = sol11dadk_pktprep(dadkp, NULL, bp, sol11dadk_rmb_iodone, NULL, NULL);
+	pktp = dadk_pktprep(dadkp, NULL, bp, dadk_rmb_iodone, NULL, NULL);
 	if (!pktp) {
 		freerbuf(bp);
 		return (ENOMEM);
@@ -1511,17 +1511,17 @@ sol11dadk_rmb_ioctl(struct sol11dadk *dadkp, int cmd, intptr_t arg, int flags, i
 
 	err = CTL_IOCTL(dadkp->dad_ctlobjp, cmd, (uintptr_t)pktp, flags);
 	freerbuf(bp);
-	sol11gda_free(dadkp->dad_ctlobjp, pktp, NULL);
+	gda_free(dadkp->dad_ctlobjp, pktp, NULL);
 	return (err);
 
 
 }
 
 static void
-sol11dadk_rmb_iodone(struct buf *bp)
+dadk_rmb_iodone(struct buf *bp)
 {
 	struct cmpkt *pktp;
-	struct sol11dadk *dadkp;
+	struct dadk *dadkp;
 
 	pktp  = GDA_BP_PKT(bp);
 	dadkp = PKT2DADK(pktp);
@@ -1535,10 +1535,10 @@ sol11dadk_rmb_iodone(struct buf *bp)
 }
 
 static int
-sol11dadk_dk_buf_setup(struct sol11dadk *dadkp, opaque_t *cmdp, dev_t dev,
+dadk_dk_buf_setup(struct dadk *dadkp, opaque_t *cmdp, dev_t dev,
 	enum uio_seg dataspace, int rw)
 {
-	struct sol11dadkio_rwcmd *rwcmdp = (struct sol11dadkio_rwcmd *)cmdp;
+	struct dadkio_rwcmd *rwcmdp = (struct dadkio_rwcmd *)cmdp;
 	struct buf	*bp;
 	struct iovec	aiov;
 	struct uio	auio;
@@ -1561,7 +1561,7 @@ sol11dadk_dk_buf_setup(struct sol11dadk *dadkp, opaque_t *cmdp, dev_t dev,
 	uio->uio_segflg = dataspace;
 
 	/* Let physio do the rest... */
-	status = physio(sol11dadk_dk_strategy, bp, dev, rw, sol11dadkmin, uio);
+	status = physio(dadk_dk_strategy, bp, dev, rw, dadkmin, uio);
 
 	freerbuf(bp);
 	return (status);
@@ -1572,26 +1572,26 @@ sol11dadk_dk_buf_setup(struct sol11dadk *dadkp, opaque_t *cmdp, dev_t dev,
 /* else we could use to many resources.		    */
 
 static void
-sol11dadkmin(struct buf *bp)
+dadkmin(struct buf *bp)
 {
-	if (bp->b_bcount > sol11dadk_dk_maxphys)
-		bp->b_bcount = sol11dadk_dk_maxphys;
+	if (bp->b_bcount > dadk_dk_maxphys)
+		bp->b_bcount = dadk_dk_maxphys;
 }
 
 static int
-sol11dadk_dk_strategy(struct buf *bp)
+dadk_dk_strategy(struct buf *bp)
 {
-	sol11dadk_dk((struct sol11dadk *)bp->av_forw, (struct sol11dadkio_rwcmd *)bp->b_back,
+	dadk_dk((struct dadk *)bp->av_forw, (struct dadkio_rwcmd *)bp->b_back,
 	    bp);
 	return (0);
 }
 
 static void
-sol11dadk_dk(struct sol11dadk *dadkp, struct sol11dadkio_rwcmd *rwcmdp, struct buf *bp)
+dadk_dk(struct dadk *dadkp, struct dadkio_rwcmd *rwcmdp, struct buf *bp)
 {
 	struct  cmpkt *pktp;
 
-	pktp = sol11dadk_pktprep(dadkp, NULL, bp, sol11dadk_iodone, NULL, NULL);
+	pktp = dadk_pktprep(dadkp, NULL, bp, dadk_iodone, NULL, NULL);
 	if (!pktp) {
 		bioerror(bp, ENOMEM);
 		biodone(bp);
@@ -1600,7 +1600,7 @@ sol11dadk_dk(struct sol11dadk *dadkp, struct sol11dadkio_rwcmd *rwcmdp, struct b
 
 	pktp->cp_passthru = rwcmdp;
 
-	(void) sol11dadk_ioprep(dadkp, pktp);
+	(void) dadk_ioprep(dadkp, pktp);
 
 	FLC_ENQUE(dadkp->dad_flcobjp, bp);
 }
