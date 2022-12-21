@@ -55,7 +55,7 @@
 #define	DENT	0x0001
 #define	DIO	0x0002
 
-static	int	sol11cmdk_debug = DIO;
+static	int	cmdk_debug = DIO;
 #endif
 
 #ifndef	TRUE
@@ -68,112 +68,112 @@ static	int	sol11cmdk_debug = DIO;
 
 /*
  * NDKMAP is the base number for accessing the fdisk partitions.
- * c?d?p0 --> sol11cmdk@?,?:q
+ * c?d?p0 --> cmdk@?,?:q
  */
 #define	PARTITION0_INDEX	(NDKMAP + 0)
 
 #define	DKTP_DATA		(dkp->dk_tgobjp)->tg_data
 #define	DKTP_EXT		(dkp->dk_tgobjp)->tg_ext
 
-static void *sol11cmdk_state;
+static void *cmdk_state;
 
 /*
- * the sol11cmdk_attach_mutex protects sol11cmdk_max_instance in multi-threaded
+ * the cmdk_attach_mutex protects cmdk_max_instance in multi-threaded
  * attach situations
  */
-static kmutex_t sol11cmdk_attach_mutex;
-static int sol11cmdk_max_instance = 0;
+static kmutex_t cmdk_attach_mutex;
+static int cmdk_max_instance = 0;
 
 /*
  * Panic dumpsys state
  * There is only a single flag that is not mutex locked since
- * the system is prevented from thread switching and sol11cmdk_dump
+ * the system is prevented from thread switching and cmdk_dump
  * will only be called in a single threaded operation.
  */
-static int	sol11cmdk_indump;
+static int	cmdk_indump;
 
 /*
  * Local Function Prototypes
  */
-static int sol11cmdk_create_obj(dev_info_t *dip, struct sol11cmdk *dkp);
-static void sol11cmdk_destroy_obj(dev_info_t *dip, struct sol11cmdk *dkp);
-static void sol11cmdkmin(struct buf *bp);
-static int sol11cmdkrw(dev_t dev, struct uio *uio, int flag);
-static int sol11cmdkarw(dev_t dev, struct aio_req *aio, int flag);
+static int cmdk_create_obj(dev_info_t *dip, struct cmdk *dkp);
+static void cmdk_destroy_obj(dev_info_t *dip, struct cmdk *dkp);
+static void cmdkmin(struct buf *bp);
+static int cmdkrw(dev_t dev, struct uio *uio, int flag);
+static int cmdkarw(dev_t dev, struct aio_req *aio, int flag);
 
 /*
  * Bad Block Handling Functions Prototypes
  */
-static void sol11cmdk_bbh_reopen(struct sol11cmdk *dkp);
-static opaque_t sol11cmdk_bbh_gethandle(opaque_t bbh_data, struct buf *bp);
-static bbh_cookie_t sol11cmdk_bbh_htoc(opaque_t bbh_data, opaque_t handle);
-static void sol11cmdk_bbh_freehandle(opaque_t bbh_data, opaque_t handle);
-static void sol11cmdk_bbh_close(struct sol11cmdk *dkp);
-static void sol11cmdk_bbh_setalts_idx(struct sol11cmdk *dkp);
-static int sol11cmdk_bbh_bsearch(struct alts_ent *buf, int cnt, daddr32_t key);
+static void cmdk_bbh_reopen(struct cmdk *dkp);
+static opaque_t cmdk_bbh_gethandle(opaque_t bbh_data, struct buf *bp);
+static bbh_cookie_t cmdk_bbh_htoc(opaque_t bbh_data, opaque_t handle);
+static void cmdk_bbh_freehandle(opaque_t bbh_data, opaque_t handle);
+static void cmdk_bbh_close(struct cmdk *dkp);
+static void cmdk_bbh_setalts_idx(struct cmdk *dkp);
+static int cmdk_bbh_bsearch(struct alts_ent *buf, int cnt, daddr32_t key);
 
-static struct bbh_objops sol11cmdk_bbh_ops = {
+static struct bbh_objops cmdk_bbh_ops = {
 	nulldev,
 	nulldev,
-	sol11cmdk_bbh_gethandle,
-	sol11cmdk_bbh_htoc,
-	sol11cmdk_bbh_freehandle,
+	cmdk_bbh_gethandle,
+	cmdk_bbh_htoc,
+	cmdk_bbh_freehandle,
 	0, 0
 };
 
-static int sol11cmdkopen(dev_t *dev_p, int flag, int otyp, cred_t *credp);
-static int sol11cmdkclose(dev_t dev, int flag, int otyp, cred_t *credp);
-static int sol11cmdkstrategy(struct buf *bp);
-static int sol11cmdkdump(dev_t dev, caddr_t addr, daddr_t blkno, int nblk);
-static int sol11cmdkioctl(dev_t, int, intptr_t, int, cred_t *, int *);
-static int sol11cmdkread(dev_t dev, struct uio *uio, cred_t *credp);
-static int sol11cmdkwrite(dev_t dev, struct uio *uio, cred_t *credp);
-static int sol11cmdk_prop_op(dev_t dev, dev_info_t *dip, ddi_prop_op_t prop_op,
+static int cmdkopen(dev_t *dev_p, int flag, int otyp, cred_t *credp);
+static int cmdkclose(dev_t dev, int flag, int otyp, cred_t *credp);
+static int cmdkstrategy(struct buf *bp);
+static int cmdkdump(dev_t dev, caddr_t addr, daddr_t blkno, int nblk);
+static int cmdkioctl(dev_t, int, intptr_t, int, cred_t *, int *);
+static int cmdkread(dev_t dev, struct uio *uio, cred_t *credp);
+static int cmdkwrite(dev_t dev, struct uio *uio, cred_t *credp);
+static int cmdk_prop_op(dev_t dev, dev_info_t *dip, ddi_prop_op_t prop_op,
     int mod_flags, char *name, caddr_t valuep, int *lengthp);
-static int sol11cmdkaread(dev_t dev, struct aio_req *aio, cred_t *credp);
-static int sol11cmdkawrite(dev_t dev, struct aio_req *aio, cred_t *credp);
+static int cmdkaread(dev_t dev, struct aio_req *aio, cred_t *credp);
+static int cmdkawrite(dev_t dev, struct aio_req *aio, cred_t *credp);
 
 /*
  * Device driver ops vector
  */
 
-static struct cb_ops sol11cmdk_cb_ops = {
-	sol11cmdkopen, 		/* open */
-	sol11cmdkclose, 		/* close */
-	sol11cmdkstrategy, 		/* strategy */
+static struct cb_ops cmdk_cb_ops = {
+	cmdkopen, 		/* open */
+	cmdkclose, 		/* close */
+	cmdkstrategy, 		/* strategy */
 	nodev, 			/* print */
-	sol11cmdkdump, 		/* dump */
-	sol11cmdkread, 		/* read */
-	sol11cmdkwrite, 		/* write */
-	sol11cmdkioctl, 		/* ioctl */
+	cmdkdump, 		/* dump */
+	cmdkread, 		/* read */
+	cmdkwrite, 		/* write */
+	cmdkioctl, 		/* ioctl */
 	nodev, 			/* devmap */
 	nodev, 			/* mmap */
 	nodev, 			/* segmap */
 	nochpoll, 		/* poll */
-	sol11cmdk_prop_op, 		/* cb_prop_op */
+	cmdk_prop_op, 		/* cb_prop_op */
 	0, 			/* streamtab  */
 	D_64BIT | D_MP | D_NEW,	/* Driver comaptibility flag */
 	CB_REV,			/* cb_rev */
-	sol11cmdkaread,		/* async read */
-	sol11cmdkawrite		/* async write */
+	cmdkaread,		/* async read */
+	cmdkawrite		/* async write */
 };
 
-static int sol11cmdkinfo(dev_info_t *dip, ddi_info_cmd_t infocmd, void *arg,
+static int cmdkinfo(dev_info_t *dip, ddi_info_cmd_t infocmd, void *arg,
     void **result);
-static int sol11cmdkprobe(dev_info_t *dip);
-static int sol11cmdkattach(dev_info_t *dip, ddi_attach_cmd_t cmd);
-static int sol11cmdkdetach(dev_info_t *dip, ddi_detach_cmd_t cmd);
+static int cmdkprobe(dev_info_t *dip);
+static int cmdkattach(dev_info_t *dip, ddi_attach_cmd_t cmd);
+static int cmdkdetach(dev_info_t *dip, ddi_detach_cmd_t cmd);
 
-struct dev_ops sol11cmdk_ops = {
+struct dev_ops cmdk_ops = {
 	DEVO_REV, 		/* devo_rev, */
 	0, 			/* refcnt  */
-	sol11cmdkinfo,		/* info */
+	cmdkinfo,		/* info */
 	nulldev, 		/* identify */
-	sol11cmdkprobe, 		/* probe */
-	sol11cmdkattach, 		/* attach */
-	sol11cmdkdetach,		/* detach */
+	cmdkprobe, 		/* probe */
+	cmdkattach, 		/* attach */
+	cmdkdetach,		/* detach */
 	nodev, 			/* reset */
-	&sol11cmdk_cb_ops, 		/* driver operations */
+	&cmdk_cb_ops, 		/* driver operations */
 	(struct bus_ops *)0	/* bus operations */
 };
 
@@ -187,7 +187,7 @@ extern struct mod_ops mod_driverops;
 static struct modldrv modldrv = {
 	&mod_driverops, 	/* Type of module. This one is a driver */
 	"Solaris 11 Common Direct Access Disk",
-	&sol11cmdk_ops, 				/* driver ops 		*/
+	&cmdk_ops, 				/* driver ops 		*/
 };
 
 static struct modlinkage modlinkage = {
@@ -196,26 +196,26 @@ static struct modlinkage modlinkage = {
 
 /* Function prototypes for cmlb callbacks */
 
-static int sol11cmdk_lb_rdwr(dev_info_t *dip, uchar_t cmd, void *bufaddr,
+static int cmdk_lb_rdwr(dev_info_t *dip, uchar_t cmd, void *bufaddr,
     diskaddr_t start, size_t length);
-static int sol11cmdk_lb_getphygeom(dev_info_t *dip,  cmlb_geom_t *phygeomp);
-static int sol11cmdk_lb_getvirtgeom(dev_info_t *dip,  cmlb_geom_t *virtgeomp);
-static int sol11cmdk_lb_getcapacity(dev_info_t *dip, diskaddr_t *capp);
-static int sol11cmdk_lb_getattribute(dev_info_t *dip, tg_attribute_t *tgattribute);
+static int cmdk_lb_getphygeom(dev_info_t *dip,  cmlb_geom_t *phygeomp);
+static int cmdk_lb_getvirtgeom(dev_info_t *dip,  cmlb_geom_t *virtgeomp);
+static int cmdk_lb_getcapacity(dev_info_t *dip, diskaddr_t *capp);
+static int cmdk_lb_getattribute(dev_info_t *dip, tg_attribute_t *tgattribute);
 
-static void sol11cmdk_devid_setup(struct sol11cmdk *dkp);
-static int sol11cmdk_devid_modser(struct sol11cmdk *dkp);
-static int sol11cmdk_get_modser(struct sol11cmdk *dkp, int ioccmd, char *buf, int len);
-static int sol11cmdk_devid_fabricate(struct sol11cmdk *dkp);
-static int sol11cmdk_devid_read(struct sol11cmdk *dkp);
+static void cmdk_devid_setup(struct cmdk *dkp);
+static int cmdk_devid_modser(struct cmdk *dkp);
+static int cmdk_get_modser(struct cmdk *dkp, int ioccmd, char *buf, int len);
+static int cmdk_devid_fabricate(struct cmdk *dkp);
+static int cmdk_devid_read(struct cmdk *dkp);
 
-static cmlb_tg_ops_t sol11cmdk_lb_ops = {
+static cmlb_tg_ops_t cmdk_lb_ops = {
 	TG_DK_OPS_VERSION_0,
-	sol11cmdk_lb_rdwr,
-	sol11cmdk_lb_getphygeom,
-	sol11cmdk_lb_getvirtgeom,
-	sol11cmdk_lb_getcapacity,
-	sol11cmdk_lb_getattribute
+	cmdk_lb_rdwr,
+	cmdk_lb_getphygeom,
+	cmdk_lb_getvirtgeom,
+	cmdk_lb_getcapacity,
+	cmdk_lb_getattribute
 };
 
 int
@@ -223,13 +223,13 @@ _init(void)
 {
 	int 	rval;
 
-	if (rval = ddi_soft_state_init(&sol11cmdk_state, sizeof (struct sol11cmdk), 7))
+	if (rval = ddi_soft_state_init(&cmdk_state, sizeof (struct cmdk), 7))
 		return (rval);
 
-	mutex_init(&sol11cmdk_attach_mutex, NULL, MUTEX_DRIVER, NULL);
+	mutex_init(&cmdk_attach_mutex, NULL, MUTEX_DRIVER, NULL);
 	if ((rval = mod_install(&modlinkage)) != 0) {
-		mutex_destroy(&sol11cmdk_attach_mutex);
-		ddi_soft_state_fini(&sol11cmdk_state);
+		mutex_destroy(&cmdk_attach_mutex);
+		ddi_soft_state_fini(&cmdk_state);
 	}
 	return (rval);
 }
@@ -240,7 +240,7 @@ _fini(void)
 	return (EBUSY);
 
 	/*
-	 * This has been commented out until sol11cmdk is a true
+	 * This has been commented out until cmdk is a true
 	 * unloadable module. Right now x86's are panicking on
 	 * a diskless reconfig boot.
 	 */
@@ -252,8 +252,8 @@ _fini(void)
 	if (rval != 0)
 		return (rval);
 
-	mutex_destroy(&sol11cmdk_attach_mutex);
-	ddi_soft_state_fini(&sol11cmdk_state);
+	mutex_destroy(&cmdk_attach_mutex);
+	ddi_soft_state_fini(&cmdk_state);
 
 	return (0);
 #endif
@@ -269,19 +269,19 @@ _info(struct modinfo *modinfop)
  * Autoconfiguration Routines
  */
 static int
-sol11cmdkprobe(dev_info_t *dip)
+cmdkprobe(dev_info_t *dip)
 {
 	int 	instance;
 	int	status;
-	struct	sol11cmdk	*dkp;
+	struct	cmdk	*dkp;
 
 	instance = ddi_get_instance(dip);
 
-	if (ddi_get_soft_state(sol11cmdk_state, instance))
+	if (ddi_get_soft_state(cmdk_state, instance))
 		return (DDI_PROBE_PARTIAL);
 
-	if ((ddi_soft_state_zalloc(sol11cmdk_state, instance) != DDI_SUCCESS) ||
-	    ((dkp = ddi_get_soft_state(sol11cmdk_state, instance)) == NULL))
+	if ((ddi_soft_state_zalloc(cmdk_state, instance) != DDI_SUCCESS) ||
+	    ((dkp = ddi_get_soft_state(cmdk_state, instance)) == NULL))
 		return (DDI_PROBE_PARTIAL);
 
 	mutex_init(&dkp->dk_mutex, NULL, MUTEX_DRIVER, NULL);
@@ -292,52 +292,52 @@ sol11cmdkprobe(dev_info_t *dip)
 	dkp->dk_dev = makedevice(ddi_driver_major(dip),
 	    ddi_get_instance(dip) << CMDK_UNITSHF);
 
-	/* linkage to sol11dadk and strategy */
-	if (sol11cmdk_create_obj(dip, dkp) != DDI_SUCCESS) {
+	/* linkage to dadk and strategy */
+	if (cmdk_create_obj(dip, dkp) != DDI_SUCCESS) {
 		mutex_exit(&dkp->dk_mutex);
 		mutex_destroy(&dkp->dk_mutex);
 		rw_destroy(&dkp->dk_bbh_mutex);
-		ddi_soft_state_free(sol11cmdk_state, instance);
+		ddi_soft_state_free(cmdk_state, instance);
 		return (DDI_PROBE_PARTIAL);
 	}
 
-	status = sol11dadk_probe(DKTP_DATA, KM_NOSLEEP);
+	status = dadk_probe(DKTP_DATA, KM_NOSLEEP);
 	if (status != DDI_PROBE_SUCCESS) {
-		sol11cmdk_destroy_obj(dip, dkp);	/* sol11dadk/strategy linkage  */
+		cmdk_destroy_obj(dip, dkp);	/* dadk/strategy linkage  */
 		mutex_exit(&dkp->dk_mutex);
 		mutex_destroy(&dkp->dk_mutex);
 		rw_destroy(&dkp->dk_bbh_mutex);
-		ddi_soft_state_free(sol11cmdk_state, instance);
+		ddi_soft_state_free(cmdk_state, instance);
 		return (status);
 	}
 
 	mutex_exit(&dkp->dk_mutex);
 #ifdef CMDK_DEBUG
-	if (sol11cmdk_debug & DENT)
-		PRF("sol11cmdkprobe: instance= %d name= `%s`\n",
+	if (cmdk_debug & DENT)
+		PRF("cmdkprobe: instance= %d name= `%s`\n",
 		    instance, ddi_get_name_addr(dip));
 #endif
 	return (status);
 }
 
 static int
-sol11cmdkattach(dev_info_t *dip, ddi_attach_cmd_t cmd)
+cmdkattach(dev_info_t *dip, ddi_attach_cmd_t cmd)
 {
 	int 		instance;
-	struct		sol11cmdk *dkp;
+	struct		cmdk *dkp;
 	char 		*node_type;
 
 	if (cmd != DDI_ATTACH)
 		return (DDI_FAILURE);
 
 	instance = ddi_get_instance(dip);
-	if (!(dkp = ddi_get_soft_state(sol11cmdk_state, instance)))
+	if (!(dkp = ddi_get_soft_state(cmdk_state, instance)))
 		return (DDI_FAILURE);
 
 	mutex_enter(&dkp->dk_mutex);
 
-	/* sol11dadk_attach is an empty function that only returns SUCCESS */
-	(void) sol11dadk_attach(DKTP_DATA);
+	/* dadk_attach is an empty function that only returns SUCCESS */
+	(void) dadk_attach(DKTP_DATA);
 
 	node_type = (DKTP_EXT->tg_nodetype);
 
@@ -348,7 +348,7 @@ sol11cmdkattach(dev_info_t *dip, ddi_attach_cmd_t cmd)
 	 */
 
 	/* open the target disk	 */
-	if (sol11dadk_open(DKTP_DATA, 0) != DDI_SUCCESS)
+	if (dadk_open(DKTP_DATA, 0) != DDI_SUCCESS)
 		goto fail2;
 
 	/* mark as having opened target */
@@ -357,7 +357,7 @@ sol11cmdkattach(dev_info_t *dip, ddi_attach_cmd_t cmd)
 	cmlb_alloc_handle((cmlb_handle_t *)&dkp->dk_cmlbhandle);
 
 	if (cmlb_attach(dip,
-	    &sol11cmdk_lb_ops,
+	    &cmdk_lb_ops,
 	    DTYPE_DIRECT,		/* device_type */
 	    0,				/* removable */
 	    node_type,
@@ -369,15 +369,15 @@ sol11cmdkattach(dev_info_t *dip, ddi_attach_cmd_t cmd)
 	(void) cmlb_validate(dkp->dk_cmlbhandle);
 
 	/* set bbh (Bad Block Handling) */
-	sol11cmdk_bbh_reopen(dkp);
+	cmdk_bbh_reopen(dkp);
 
 	/* setup devid string */
-	sol11cmdk_devid_setup(dkp);
+	cmdk_devid_setup(dkp);
 
-	mutex_enter(&sol11cmdk_attach_mutex);
-	if (instance > sol11cmdk_max_instance)
-		sol11cmdk_max_instance = instance;
-	mutex_exit(&sol11cmdk_attach_mutex);
+	mutex_enter(&cmdk_attach_mutex);
+	if (instance > cmdk_max_instance)
+		cmdk_max_instance = instance;
+	mutex_exit(&cmdk_attach_mutex);
 
 	mutex_exit(&dkp->dk_mutex);
 
@@ -393,40 +393,40 @@ sol11cmdkattach(dev_info_t *dip, ddi_attach_cmd_t cmd)
 
 fail1:
 	cmlb_free_handle(&dkp->dk_cmlbhandle);
-	(void) sol11dadk_close(DKTP_DATA);
+	(void) dadk_close(DKTP_DATA);
 fail2:
-	sol11cmdk_destroy_obj(dip, dkp);
+	cmdk_destroy_obj(dip, dkp);
 	rw_destroy(&dkp->dk_bbh_mutex);
 	mutex_exit(&dkp->dk_mutex);
 	mutex_destroy(&dkp->dk_mutex);
-	ddi_soft_state_free(sol11cmdk_state, instance);
+	ddi_soft_state_free(cmdk_state, instance);
 	return (DDI_FAILURE);
 }
 
 
 static int
-sol11cmdkdetach(dev_info_t *dip, ddi_detach_cmd_t cmd)
+cmdkdetach(dev_info_t *dip, ddi_detach_cmd_t cmd)
 {
-	struct sol11cmdk	*dkp;
+	struct cmdk	*dkp;
 	int 		instance;
 	int		max_instance;
 
 	if (cmd != DDI_DETACH) {
 #ifdef CMDK_DEBUG
-		if (sol11cmdk_debug & DIO) {
-			PRF("sol11cmdkdetach: cmd = %d unknown\n", cmd);
+		if (cmdk_debug & DIO) {
+			PRF("cmdkdetach: cmd = %d unknown\n", cmd);
 		}
 #endif
 		return (DDI_FAILURE);
 	}
 
-	mutex_enter(&sol11cmdk_attach_mutex);
-	max_instance = sol11cmdk_max_instance;
-	mutex_exit(&sol11cmdk_attach_mutex);
+	mutex_enter(&cmdk_attach_mutex);
+	max_instance = cmdk_max_instance;
+	mutex_exit(&cmdk_attach_mutex);
 
 	/* check if any instance of driver is open */
 	for (instance = 0; instance < max_instance; instance++) {
-		dkp = ddi_get_soft_state(sol11cmdk_state, instance);
+		dkp = ddi_get_soft_state(cmdk_state, instance);
 		if (!dkp)
 			continue;
 		if (dkp->dk_flag & CMDK_OPEN)
@@ -434,53 +434,53 @@ sol11cmdkdetach(dev_info_t *dip, ddi_detach_cmd_t cmd)
 	}
 
 	instance = ddi_get_instance(dip);
-	if (!(dkp = ddi_get_soft_state(sol11cmdk_state, instance)))
+	if (!(dkp = ddi_get_soft_state(cmdk_state, instance)))
 		return (DDI_SUCCESS);
 
 	mutex_enter(&dkp->dk_mutex);
 
 	/*
-	 * The sol11cmdk_part_info call at the end of sol11cmdkattach may have
-	 * caused sol11cmdk_reopen to do a TGDK_OPEN, make sure we close on
-	 * detach for case when sol11cmdkopen/sol11cmdkclose never occurs.
+	 * The cmdk_part_info call at the end of cmdkattach may have
+	 * caused cmdk_reopen to do a TGDK_OPEN, make sure we close on
+	 * detach for case when cmdkopen/cmdkclose never occurs.
 	 */
 	if (dkp->dk_flag & CMDK_TGDK_OPEN) {
 		dkp->dk_flag &= ~CMDK_TGDK_OPEN;
-		(void) sol11dadk_close(DKTP_DATA);
+		(void) dadk_close(DKTP_DATA);
 	}
 
 	cmlb_detach(dkp->dk_cmlbhandle);
 	cmlb_free_handle(&dkp->dk_cmlbhandle);
 	ddi_prop_remove_all(dip);
 
-	sol11cmdk_destroy_obj(dip, dkp);	/* sol11dadk/strategy linkage  */
+	cmdk_destroy_obj(dip, dkp);	/* dadk/strategy linkage  */
 	mutex_exit(&dkp->dk_mutex);
 	mutex_destroy(&dkp->dk_mutex);
 	rw_destroy(&dkp->dk_bbh_mutex);
-	ddi_soft_state_free(sol11cmdk_state, instance);
+	ddi_soft_state_free(cmdk_state, instance);
 
 	return (DDI_SUCCESS);
 }
 
 static int
-sol11cmdkinfo(dev_info_t *dip, ddi_info_cmd_t infocmd, void *arg, void **result)
+cmdkinfo(dev_info_t *dip, ddi_info_cmd_t infocmd, void *arg, void **result)
 {
 	dev_t		dev = (dev_t)arg;
 	int 		instance;
-	struct	sol11cmdk	*dkp;
+	struct	cmdk	*dkp;
 
 #ifdef lint
 	dip = dip;	/* no one ever uses this */
 #endif
 #ifdef CMDK_DEBUG
-	if (sol11cmdk_debug & DENT)
-		PRF("sol11cmdkinfo: call\n");
+	if (cmdk_debug & DENT)
+		PRF("cmdkinfo: call\n");
 #endif
 	instance = CMDKUNIT(dev);
 
 	switch (infocmd) {
 		case DDI_INFO_DEVT2DEVINFO:
-			if (!(dkp = ddi_get_soft_state(sol11cmdk_state, instance)))
+			if (!(dkp = ddi_get_soft_state(cmdk_state, instance)))
 				return (DDI_FAILURE);
 			*result = (void *) dkp->dk_dip;
 			break;
@@ -494,19 +494,19 @@ sol11cmdkinfo(dev_info_t *dip, ddi_info_cmd_t infocmd, void *arg, void **result)
 }
 
 static int
-sol11cmdk_prop_op(dev_t dev, dev_info_t *dip, ddi_prop_op_t prop_op, int mod_flags,
+cmdk_prop_op(dev_t dev, dev_info_t *dip, ddi_prop_op_t prop_op, int mod_flags,
     char *name, caddr_t valuep, int *lengthp)
 {
-	struct	sol11cmdk	*dkp;
+	struct	cmdk	*dkp;
 	diskaddr_t	p_lblksrt;
 	diskaddr_t	p_lblkcnt;
 
 #ifdef CMDK_DEBUG
-	if (sol11cmdk_debug & DENT)
-		PRF("sol11cmdk_prop_op: call\n");
+	if (cmdk_debug & DENT)
+		PRF("cmdk_prop_op: call\n");
 #endif
 
-	dkp = ddi_get_soft_state(sol11cmdk_state, ddi_get_instance(dip));
+	dkp = ddi_get_soft_state(cmdk_state, ddi_get_instance(dip));
 
 	/*
 	 * Our dynamic properties are all device specific and size oriented.
@@ -537,21 +537,21 @@ sol11cmdk_prop_op(dev_t dev, dev_info_t *dip, ddi_prop_op_t prop_op, int mod_fla
  * dump routine
  */
 static int
-sol11cmdkdump(dev_t dev, caddr_t addr, daddr_t blkno, int nblk)
+cmdkdump(dev_t dev, caddr_t addr, daddr_t blkno, int nblk)
 {
 	int 		instance;
-	struct	sol11cmdk	*dkp;
+	struct	cmdk	*dkp;
 	diskaddr_t	p_lblksrt;
 	diskaddr_t	p_lblkcnt;
 	struct	buf	local;
 	struct	buf	*bp;
 
 #ifdef CMDK_DEBUG
-	if (sol11cmdk_debug & DENT)
-		PRF("sol11cmdkdump: call\n");
+	if (cmdk_debug & DENT)
+		PRF("cmdkdump: call\n");
 #endif
 	instance = CMDKUNIT(dev);
-	if (!(dkp = ddi_get_soft_state(sol11cmdk_state, instance)) || (blkno < 0))
+	if (!(dkp = ddi_get_soft_state(cmdk_state, instance)) || (blkno < 0))
 		return (ENXIO);
 
 	if (cmlb_partinfo(
@@ -567,7 +567,7 @@ sol11cmdkdump(dev_t dev, caddr_t addr, daddr_t blkno, int nblk)
 	if ((blkno+nblk) > p_lblkcnt)
 		return (EINVAL);
 
-	sol11cmdk_indump = 1;	/* Tell disk targets we are panic dumpping */
+	cmdk_indump = 1;	/* Tell disk targets we are panic dumpping */
 
 	bp = &local;
 	bzero(bp, sizeof (*bp));
@@ -576,23 +576,23 @@ sol11cmdkdump(dev_t dev, caddr_t addr, daddr_t blkno, int nblk)
 	bp->b_bcount = nblk << SCTRSHFT;
 	SET_BP_SEC(bp, ((ulong_t)(p_lblksrt + blkno)));
 
-	(void) sol11dadk_dump(DKTP_DATA, bp);
+	(void) dadk_dump(DKTP_DATA, bp);
 	return (bp->b_error);
 }
 
 /*
- * Copy in the sol11dadkio_rwcmd according to the user's data model.  If needed,
+ * Copy in the dadkio_rwcmd according to the user's data model.  If needed,
  * convert it for our internal use.
  */
 static int
-rwcmd_copyin(struct sol11dadkio_rwcmd *rwcmdp, caddr_t inaddr, int flag)
+rwcmd_copyin(struct dadkio_rwcmd *rwcmdp, caddr_t inaddr, int flag)
 {
 	switch (ddi_model_convert_from(flag)) {
 		case DDI_MODEL_ILP32: {
-			struct sol11dadkio_rwcmd32 cmd32;
+			struct dadkio_rwcmd32 cmd32;
 
 			if (ddi_copyin(inaddr, &cmd32,
-			    sizeof (struct sol11dadkio_rwcmd32), flag)) {
+			    sizeof (struct dadkio_rwcmd32), flag)) {
 				return (EFAULT);
 			}
 
@@ -611,7 +611,7 @@ rwcmd_copyin(struct sol11dadkio_rwcmd *rwcmdp, caddr_t inaddr, int flag)
 		}
 		case DDI_MODEL_NONE: {
 			if (ddi_copyin(inaddr, rwcmdp,
-			    sizeof (struct sol11dadkio_rwcmd), flag)) {
+			    sizeof (struct dadkio_rwcmd), flag)) {
 				return (EFAULT);
 			}
 		}
@@ -624,11 +624,11 @@ rwcmd_copyin(struct sol11dadkio_rwcmd *rwcmdp, caddr_t inaddr, int flag)
  * data model and copy it out to the user.
  */
 static int
-rwcmd_copyout(struct sol11dadkio_rwcmd *rwcmdp, caddr_t outaddr, int flag)
+rwcmd_copyout(struct dadkio_rwcmd *rwcmdp, caddr_t outaddr, int flag)
 {
 	switch (ddi_model_convert_from(flag)) {
 		case DDI_MODEL_ILP32: {
-			struct sol11dadkio_rwcmd32 cmd32;
+			struct dadkio_rwcmd32 cmd32;
 
 			cmd32.cmd = rwcmdp->cmd;
 			cmd32.flags = rwcmdp->flags;
@@ -650,13 +650,13 @@ rwcmd_copyout(struct sol11dadkio_rwcmd *rwcmdp, caddr_t outaddr, int flag)
 			    cmd32.status.add_error_info, DADKIO_ERROR_INFO_LEN);
 
 			if (ddi_copyout(&cmd32, outaddr,
-			    sizeof (struct sol11dadkio_rwcmd32), flag))
+			    sizeof (struct dadkio_rwcmd32), flag))
 				return (EFAULT);
 			break;
 		}
 		case DDI_MODEL_NONE: {
 			if (ddi_copyout(rwcmdp, outaddr,
-			    sizeof (struct sol11dadkio_rwcmd), flag))
+			    sizeof (struct dadkio_rwcmd), flag))
 			return (EFAULT);
 		}
 	}
@@ -667,15 +667,15 @@ rwcmd_copyout(struct sol11dadkio_rwcmd *rwcmdp, caddr_t outaddr, int flag)
  * ioctl routine
  */
 static int
-sol11cmdkioctl(dev_t dev, int cmd, intptr_t arg, int flag, cred_t *credp, int *rvalp)
+cmdkioctl(dev_t dev, int cmd, intptr_t arg, int flag, cred_t *credp, int *rvalp)
 {
 	int 		instance;
 	struct scsi_device *devp;
-	struct sol11cmdk	*dkp;
+	struct cmdk	*dkp;
 	char 		data[NBPSCTR];
 
 	instance = CMDKUNIT(dev);
-	if (!(dkp = ddi_get_soft_state(sol11cmdk_state, instance)))
+	if (!(dkp = ddi_get_soft_state(cmdk_state, instance)))
 		return (ENXIO);
 
 	bzero(data, sizeof (data));
@@ -686,8 +686,8 @@ sol11cmdkioctl(dev_t dev, int cmd, intptr_t arg, int flag, cred_t *credp, int *r
 		struct dk_minfo	media_info;
 		struct  tgdk_geom phyg;
 
-		/* sol11dadk_getphygeom always returns success */
-		(void) sol11dadk_getphygeom(DKTP_DATA, &phyg);
+		/* dadk_getphygeom always returns success */
+		(void) dadk_getphygeom(DKTP_DATA, &phyg);
 
 		media_info.dki_lbsize = phyg.g_secsiz;
 		media_info.dki_capacity = phyg.g_cap;
@@ -739,8 +739,8 @@ sol11cmdkioctl(dev_t dev, int cmd, intptr_t arg, int flag, cred_t *credp, int *r
 		if (ddi_copyin((void *)arg, &state, sizeof (int), flag))
 			return (EFAULT);
 
-		/* sol11dadk_check_media blocks until state changes */
-		if (rval = sol11dadk_check_media(DKTP_DATA, &state))
+		/* dadk_check_media blocks until state changes */
+		if (rval = dadk_check_media(DKTP_DATA, &state))
 			return (rval);
 
 		if (state == DKIO_INSERTED) {
@@ -787,7 +787,7 @@ sol11cmdkioctl(dev_t dev, int cmd, intptr_t arg, int flag, cred_t *credp, int *r
 		 */
 
 		/* start BBH */
-		sol11cmdk_bbh_reopen(dkp);
+		cmdk_bbh_reopen(dkp);
 		return (0);
 
 	case DKIOCG_PHYGEOM:
@@ -816,21 +816,21 @@ sol11cmdkioctl(dev_t dev, int cmd, intptr_t arg, int flag, cred_t *credp, int *r
 		    credp,
 		    rvalp);
 		if (cmd == DKIOCSVTOC)
-			sol11cmdk_devid_setup(dkp);
+			cmdk_devid_setup(dkp);
 		return (rc);
 	}
 
 	case DIOCTL_RWCMD: {
-		struct	sol11dadkio_rwcmd *rwcmdp;
+		struct	dadkio_rwcmd *rwcmdp;
 		int	status;
 
-		rwcmdp = kmem_alloc(sizeof (struct sol11dadkio_rwcmd), KM_SLEEP);
+		rwcmdp = kmem_alloc(sizeof (struct dadkio_rwcmd), KM_SLEEP);
 
 		status = rwcmd_copyin(rwcmdp, (caddr_t)arg, flag);
 
 		if (status == 0) {
-			bzero(&(rwcmdp->status), sizeof (struct sol11dadkio_status));
-			status = sol11dadk_ioctl(DKTP_DATA,
+			bzero(&(rwcmdp->status), sizeof (struct dadkio_status));
+			status = dadk_ioctl(DKTP_DATA,
 			    dev,
 			    cmd,
 			    (uintptr_t)rwcmdp,
@@ -841,12 +841,12 @@ sol11cmdkioctl(dev_t dev, int cmd, intptr_t arg, int flag, cred_t *credp, int *r
 		if (status == 0)
 			status = rwcmd_copyout(rwcmdp, (caddr_t)arg, flag);
 
-		kmem_free(rwcmdp, sizeof (struct sol11dadkio_rwcmd));
+		kmem_free(rwcmdp, sizeof (struct dadkio_rwcmd));
 		return (status);
 	}
 
 	default:
-		return (sol11dadk_ioctl(DKTP_DATA,
+		return (dadk_ioctl(DKTP_DATA,
 		    dev,
 		    cmd,
 		    arg,
@@ -858,17 +858,17 @@ sol11cmdkioctl(dev_t dev, int cmd, intptr_t arg, int flag, cred_t *credp, int *r
 
 /*ARGSUSED1*/
 static int
-sol11cmdkclose(dev_t dev, int flag, int otyp, cred_t *credp)
+cmdkclose(dev_t dev, int flag, int otyp, cred_t *credp)
 {
 	int		part;
 	ulong_t		partbit;
 	int 		instance;
-	struct sol11cmdk	*dkp;
+	struct cmdk	*dkp;
 	int		lastclose = 1;
 	int		i;
 
 	instance = CMDKUNIT(dev);
-	if (!(dkp = ddi_get_soft_state(sol11cmdk_state, instance)) ||
+	if (!(dkp = ddi_get_soft_state(cmdk_state, instance)) ||
 	    (otyp >= OTYPCNT))
 		return (ENXIO);
 
@@ -914,20 +914,20 @@ sol11cmdkclose(dev_t dev, int flag, int otyp, cred_t *credp)
 
 /*ARGSUSED3*/
 static int
-sol11cmdkopen(dev_t *dev_p, int flag, int otyp, cred_t *credp)
+cmdkopen(dev_t *dev_p, int flag, int otyp, cred_t *credp)
 {
 	dev_t		dev = *dev_p;
 	int 		part;
 	ulong_t		partbit;
 	int 		instance;
-	struct	sol11cmdk	*dkp;
+	struct	cmdk	*dkp;
 	diskaddr_t	p_lblksrt;
 	diskaddr_t	p_lblkcnt;
 	int		i;
 	int		nodelay;
 
 	instance = CMDKUNIT(dev);
-	if (!(dkp = ddi_get_soft_state(sol11cmdk_state, instance)))
+	if (!(dkp = ddi_get_soft_state(cmdk_state, instance)))
 		return (ENXIO);
 
 	if (otyp >= OTYPCNT)
@@ -1002,9 +1002,9 @@ excl_open_fail:
  */
 /*ARGSUSED2*/
 static int
-sol11cmdkread(dev_t dev, struct uio *uio, cred_t *credp)
+cmdkread(dev_t dev, struct uio *uio, cred_t *credp)
 {
-	return (sol11cmdkrw(dev, uio, B_READ));
+	return (cmdkrw(dev, uio, B_READ));
 }
 
 /*
@@ -1012,9 +1012,9 @@ sol11cmdkread(dev_t dev, struct uio *uio, cred_t *credp)
  */
 /*ARGSUSED2*/
 static int
-sol11cmdkaread(dev_t dev, struct aio_req *aio, cred_t *credp)
+cmdkaread(dev_t dev, struct aio_req *aio, cred_t *credp)
 {
-	return (sol11cmdkarw(dev, aio, B_READ));
+	return (cmdkarw(dev, aio, B_READ));
 }
 
 /*
@@ -1022,9 +1022,9 @@ sol11cmdkaread(dev_t dev, struct aio_req *aio, cred_t *credp)
  */
 /*ARGSUSED2*/
 static int
-sol11cmdkwrite(dev_t dev, struct uio *uio, cred_t *credp)
+cmdkwrite(dev_t dev, struct uio *uio, cred_t *credp)
 {
-	return (sol11cmdkrw(dev, uio, B_WRITE));
+	return (cmdkrw(dev, uio, B_WRITE));
 }
 
 /*
@@ -1032,44 +1032,44 @@ sol11cmdkwrite(dev_t dev, struct uio *uio, cred_t *credp)
  */
 /*ARGSUSED2*/
 static int
-sol11cmdkawrite(dev_t dev, struct aio_req *aio, cred_t *credp)
+cmdkawrite(dev_t dev, struct aio_req *aio, cred_t *credp)
 {
-	return (sol11cmdkarw(dev, aio, B_WRITE));
+	return (cmdkarw(dev, aio, B_WRITE));
 }
 
 static void
-sol11cmdkmin(struct buf *bp)
+cmdkmin(struct buf *bp)
 {
 	if (bp->b_bcount > DK_MAXRECSIZE)
 		bp->b_bcount = DK_MAXRECSIZE;
 }
 
 static int
-sol11cmdkrw(dev_t dev, struct uio *uio, int flag)
+cmdkrw(dev_t dev, struct uio *uio, int flag)
 {
-	return (physio(sol11cmdkstrategy, (struct buf *)0, dev, flag, sol11cmdkmin, uio));
+	return (physio(cmdkstrategy, (struct buf *)0, dev, flag, cmdkmin, uio));
 }
 
 static int
-sol11cmdkarw(dev_t dev, struct aio_req *aio, int flag)
+cmdkarw(dev_t dev, struct aio_req *aio, int flag)
 {
-	return (aphysio(sol11cmdkstrategy, anocancel, dev, flag, sol11cmdkmin, aio));
+	return (aphysio(cmdkstrategy, anocancel, dev, flag, cmdkmin, aio));
 }
 
 /*
  * strategy routine
  */
 static int
-sol11cmdkstrategy(struct buf *bp)
+cmdkstrategy(struct buf *bp)
 {
 	int 		instance;
-	struct	sol11cmdk 	*dkp;
+	struct	cmdk 	*dkp;
 	long		d_cnt;
 	diskaddr_t	p_lblksrt;
 	diskaddr_t	p_lblkcnt;
 
 	instance = CMDKUNIT(bp->b_edev);
-	if (sol11cmdk_indump || !(dkp = ddi_get_soft_state(sol11cmdk_state, instance)) ||
+	if (cmdk_indump || !(dkp = ddi_get_soft_state(cmdk_state, instance)) ||
 	    (dkblock(bp) < 0)) {
 		bp->b_resid = bp->b_bcount;
 		SETBPERR(bp, ENXIO);
@@ -1110,7 +1110,7 @@ sol11cmdkstrategy(struct buf *bp)
 	}
 
 	SET_BP_SEC(bp, ((ulong_t)(p_lblksrt + dkblock(bp))));
-	if (sol11dadk_strategy(DKTP_DATA, bp) != DDI_SUCCESS) {
+	if (dadk_strategy(DKTP_DATA, bp) != DDI_SUCCESS) {
 		bp->b_resid += bp->b_bcount;
 		biodone(bp);
 	}
@@ -1118,15 +1118,15 @@ sol11cmdkstrategy(struct buf *bp)
 }
 
 static int
-sol11cmdk_create_obj(dev_info_t *dip, struct sol11cmdk *dkp)
+cmdk_create_obj(dev_info_t *dip, struct cmdk *dkp)
 {
 	struct scsi_device *devp;
 	opaque_t	queobjp = NULL;
 	opaque_t	flcobjp = NULL;
 	char		que_keyvalp[64];
 	int		que_keylen;
-	char		sol11flc_keyvalp[64];
-	int		sol11flc_keylen;
+	char		flc_keyvalp[64];
+	int		flc_keylen;
 
 	ASSERT(mutex_owned(&dkp->dk_mutex));
 
@@ -1135,100 +1135,100 @@ sol11cmdk_create_obj(dev_info_t *dip, struct sol11cmdk *dkp)
 	if (ddi_prop_op(DDI_DEV_T_NONE, dip, PROP_LEN_AND_VAL_BUF,
 	    DDI_PROP_CANSLEEP, "queue", que_keyvalp, &que_keylen) !=
 	    DDI_PROP_SUCCESS) {
-		cmn_err(CE_WARN, "sol11cmdk_create_obj: queue property undefined");
+		cmn_err(CE_WARN, "cmdk_create_obj: queue property undefined");
 		return (DDI_FAILURE);
 	}
 	que_keyvalp[que_keylen] = (char)0;
 
-	if (strcmp(que_keyvalp, "sol11qfifo") == 0) {
-		queobjp = (opaque_t)sol11qfifo_create();
-	} else if (strcmp(que_keyvalp, "sol11qsort") == 0) {
-		queobjp = (opaque_t)sol11qsort_create();
+	if (strcmp(que_keyvalp, "qfifo") == 0) {
+		queobjp = (opaque_t)qfifo_create();
+	} else if (strcmp(que_keyvalp, "qsort") == 0) {
+		queobjp = (opaque_t)qsort_create();
 	} else {
 		return (DDI_FAILURE);
 	}
 
 	/* Create linkage to dequeueing routines based on property */
-	sol11flc_keylen = sizeof (sol11flc_keyvalp);
+	flc_keylen = sizeof (flc_keyvalp);
 	if (ddi_prop_op(DDI_DEV_T_NONE, dip, PROP_LEN_AND_VAL_BUF,
-	    DDI_PROP_CANSLEEP, "flow_control", sol11flc_keyvalp, &sol11flc_keylen) !=
+	    DDI_PROP_CANSLEEP, "flow_control", flc_keyvalp, &flc_keylen) !=
 	    DDI_PROP_SUCCESS) {
 		cmn_err(CE_WARN,
-		    "sol11cmdk_create_obj: flow-control property undefined");
+		    "cmdk_create_obj: flow-control property undefined");
 		return (DDI_FAILURE);
 	}
 
-	sol11flc_keyvalp[sol11flc_keylen] = (char)0;
+	flc_keyvalp[flc_keylen] = (char)0;
 
-	if (strcmp(sol11flc_keyvalp, "sol11dsngl") == 0) {
-		flcobjp = (opaque_t)sol11dsngl_create();
-	} else if (strcmp(sol11flc_keyvalp, "sol11dmult") == 0) {
-		flcobjp = (opaque_t)sol11dmult_create();
+	if (strcmp(flc_keyvalp, "dsngl") == 0) {
+		flcobjp = (opaque_t)dsngl_create();
+	} else if (strcmp(flc_keyvalp, "dmult") == 0) {
+		flcobjp = (opaque_t)dmult_create();
 	} else {
 		return (DDI_FAILURE);
 	}
 
 	/* populate bbh_obj object stored in dkp */
 	dkp->dk_bbh_obj.bbh_data = dkp;
-	dkp->dk_bbh_obj.bbh_ops = &sol11cmdk_bbh_ops;
+	dkp->dk_bbh_obj.bbh_ops = &cmdk_bbh_ops;
 
-	/* create linkage to sol11dadk */
-	dkp->dk_tgobjp = (opaque_t)sol11dadk_create();
+	/* create linkage to dadk */
+	dkp->dk_tgobjp = (opaque_t)dadk_create();
 
 	devp = ddi_get_driver_private(dip);
-	(void) sol11dadk_init(DKTP_DATA, devp, flcobjp, queobjp, &dkp->dk_bbh_obj,
+	(void) dadk_init(DKTP_DATA, devp, flcobjp, queobjp, &dkp->dk_bbh_obj,
 	    NULL);
 
 	return (DDI_SUCCESS);
 }
 
 static void
-sol11cmdk_destroy_obj(dev_info_t *dip, struct sol11cmdk *dkp)
+cmdk_destroy_obj(dev_info_t *dip, struct cmdk *dkp)
 {
 	char		que_keyvalp[64];
 	int		que_keylen;
-	char		sol11flc_keyvalp[64];
-	int		sol11flc_keylen;
+	char		flc_keyvalp[64];
+	int		flc_keylen;
 
 	ASSERT(mutex_owned(&dkp->dk_mutex));
 
-	(void) sol11dadk_free((dkp->dk_tgobjp));
+	(void) dadk_free((dkp->dk_tgobjp));
 	dkp->dk_tgobjp = NULL;
 
 	que_keylen = sizeof (que_keyvalp);
 	if (ddi_prop_op(DDI_DEV_T_NONE, dip, PROP_LEN_AND_VAL_BUF,
 	    DDI_PROP_CANSLEEP, "queue", que_keyvalp, &que_keylen) !=
 	    DDI_PROP_SUCCESS) {
-		cmn_err(CE_WARN, "sol11cmdk_destroy_obj: queue property undefined");
+		cmn_err(CE_WARN, "cmdk_destroy_obj: queue property undefined");
 		return;
 	}
 	que_keyvalp[que_keylen] = (char)0;
 
-	sol11flc_keylen = sizeof (sol11flc_keyvalp);
+	flc_keylen = sizeof (flc_keyvalp);
 	if (ddi_prop_op(DDI_DEV_T_NONE, dip, PROP_LEN_AND_VAL_BUF,
-	    DDI_PROP_CANSLEEP, "flow_control", sol11flc_keyvalp, &sol11flc_keylen) !=
+	    DDI_PROP_CANSLEEP, "flow_control", flc_keyvalp, &flc_keylen) !=
 	    DDI_PROP_SUCCESS) {
 		cmn_err(CE_WARN,
-		    "sol11cmdk_destroy_obj: flow-control property undefined");
+		    "cmdk_destroy_obj: flow-control property undefined");
 		return;
 	}
-	sol11flc_keyvalp[sol11flc_keylen] = (char)0;
+	flc_keyvalp[flc_keylen] = (char)0;
 }
 
 static int
-sol11cmdk_lb_rdwr(
+cmdk_lb_rdwr(
     dev_info_t *dip,
     uchar_t cmd,
     void *bufaddr,
     diskaddr_t start,
     size_t count)
 {
-	struct sol11cmdk	*dkp;
+	struct cmdk	*dkp;
 	opaque_t	handle;
 	int		rc = 0;
 	char		*bufa;
 
-	dkp = ddi_get_soft_state(sol11cmdk_state, ddi_get_instance(dip));
+	dkp = ddi_get_soft_state(cmdk_state, ddi_get_instance(dip));
 	if (dkp == NULL)
 		return (ENXIO);
 
@@ -1237,42 +1237,42 @@ sol11cmdk_lb_rdwr(
 
 	/* count must be multiple of 512 */
 	count = (count + NBPSCTR - 1) & -NBPSCTR;
-	handle = sol11dadk_iob_alloc(DKTP_DATA, start, count, KM_SLEEP);
+	handle = dadk_iob_alloc(DKTP_DATA, start, count, KM_SLEEP);
 	if (!handle)
 		return (ENOMEM);
 
 	if (cmd == TG_READ) {
-		bufa = sol11dadk_iob_xfer(DKTP_DATA, handle, B_READ);
+		bufa = dadk_iob_xfer(DKTP_DATA, handle, B_READ);
 		if (!bufa)
 			rc = EIO;
 		else
 			bcopy(bufa, bufaddr, count);
 	} else {
-		bufa = sol11dadk_iob_htoc(DKTP_DATA, handle);
+		bufa = dadk_iob_htoc(DKTP_DATA, handle);
 		bcopy(bufaddr, bufa, count);
-		bufa = sol11dadk_iob_xfer(DKTP_DATA, handle, B_WRITE);
+		bufa = dadk_iob_xfer(DKTP_DATA, handle, B_WRITE);
 		if (!bufa)
 			rc = EIO;
 	}
-	(void) sol11dadk_iob_free(DKTP_DATA, handle);
+	(void) dadk_iob_free(DKTP_DATA, handle);
 
 	return (rc);
 }
 
 static int
-sol11cmdk_lb_getcapacity(
+cmdk_lb_getcapacity(
     dev_info_t *dip,
     diskaddr_t *capp)
 {
-	struct sol11cmdk		*dkp;
+	struct cmdk		*dkp;
 	struct tgdk_geom	phyg;
 
-	dkp = ddi_get_soft_state(sol11cmdk_state, ddi_get_instance(dip));
+	dkp = ddi_get_soft_state(cmdk_state, ddi_get_instance(dip));
 	if (dkp == NULL)
 		return (ENXIO);
 
-	/* sol11dadk_getphygeom always returns success */
-	(void) sol11dadk_getphygeom(DKTP_DATA, &phyg);
+	/* dadk_getphygeom always returns success */
+	(void) dadk_getphygeom(DKTP_DATA, &phyg);
 
 	*capp = phyg.g_cap;
 
@@ -1280,19 +1280,19 @@ sol11cmdk_lb_getcapacity(
 }
 
 static int
-sol11cmdk_lb_getvirtgeom(
+cmdk_lb_getvirtgeom(
     dev_info_t *dip,
     cmlb_geom_t *virtgeomp)
 {
-	struct sol11cmdk		*dkp;
+	struct cmdk		*dkp;
 	struct tgdk_geom	phyg;
 	diskaddr_t		capacity;
 
-	dkp = ddi_get_soft_state(sol11cmdk_state, ddi_get_instance(dip));
+	dkp = ddi_get_soft_state(cmdk_state, ddi_get_instance(dip));
 	if (dkp == NULL)
 		return (ENXIO);
 
-	(void) sol11dadk_getgeom(DKTP_DATA, &phyg);
+	(void) dadk_getgeom(DKTP_DATA, &phyg);
 	capacity = phyg.g_cap;
 
 	/*
@@ -1316,19 +1316,19 @@ sol11cmdk_lb_getvirtgeom(
 }
 
 static int
-sol11cmdk_lb_getphygeom(
+cmdk_lb_getphygeom(
     dev_info_t *dip,
     cmlb_geom_t *phygeomp)
 {
-	struct sol11cmdk		*dkp;
+	struct cmdk		*dkp;
 	struct tgdk_geom	phyg;
 
-	dkp = ddi_get_soft_state(sol11cmdk_state, ddi_get_instance(dip));
+	dkp = ddi_get_soft_state(cmdk_state, ddi_get_instance(dip));
 	if (dkp == NULL)
 		return (ENXIO);
 
-	/* sol11dadk_getphygeom always returns success */
-	(void) sol11dadk_getphygeom(DKTP_DATA, &phyg);
+	/* dadk_getphygeom always returns success */
+	(void) dadk_getphygeom(DKTP_DATA, &phyg);
 
 	phygeomp->g_capacity	= phyg.g_cap;
 	phygeomp->g_nsect	= phyg.g_sec;
@@ -1343,13 +1343,13 @@ sol11cmdk_lb_getphygeom(
 }
 
 static int
-sol11cmdk_lb_getattribute(
+cmdk_lb_getattribute(
     dev_info_t *dip,
     tg_attribute_t *tgattribute)
 {
-	struct sol11cmdk *dkp;
+	struct cmdk *dkp;
 
-	dkp = ddi_get_soft_state(sol11cmdk_state, ddi_get_instance(dip));
+	dkp = ddi_get_soft_state(cmdk_state, ddi_get_instance(dip));
 	if (dkp == NULL)
 		return (ENXIO);
 
@@ -1371,7 +1371,7 @@ sol11cmdk_lb_getattribute(
  * If any of these succeeds, register the deviceid
  */
 static void
-sol11cmdk_devid_setup(struct sol11cmdk *dkp)
+cmdk_devid_setup(struct cmdk *dkp)
 {
 	int	rc;
 
@@ -1382,14 +1382,14 @@ sol11cmdk_devid_setup(struct sol11cmdk *dkp)
 		return;
 
 	/* 2. Build a devid from the model and serial number */
-	rc = sol11cmdk_devid_modser(dkp);
+	rc = cmdk_devid_modser(dkp);
 	if (rc != DDI_SUCCESS) {
 		/* 3. Read devid from the disk, if present */
-		rc = sol11cmdk_devid_read(dkp);
+		rc = cmdk_devid_read(dkp);
 
 		/* 4. otherwise make one up and write it on the disk */
 		if (rc != DDI_SUCCESS)
-			rc = sol11cmdk_devid_fabricate(dkp);
+			rc = cmdk_devid_fabricate(dkp);
 	}
 
 	/* If we managed to get a devid any of the above ways, register it */
@@ -1403,7 +1403,7 @@ sol11cmdk_devid_setup(struct sol11cmdk *dkp)
  * Return DDI_SUCCESS or DDI_FAILURE.
  */
 static int
-sol11cmdk_devid_modser(struct sol11cmdk *dkp)
+cmdk_devid_modser(struct cmdk *dkp)
 {
 	int	rc = DDI_FAILURE;
 	char	*hwid;
@@ -1414,13 +1414,13 @@ sol11cmdk_devid_modser(struct sol11cmdk *dkp)
 	 * device ID is a concatenation of model number, '=', serial number.
 	 */
 	hwid = kmem_alloc(CMDK_HWIDLEN, KM_SLEEP);
-	modlen = sol11cmdk_get_modser(dkp, DIOCTL_GETMODEL, hwid, CMDK_HWIDLEN);
+	modlen = cmdk_get_modser(dkp, DIOCTL_GETMODEL, hwid, CMDK_HWIDLEN);
 	if (modlen == 0) {
 		rc = DDI_FAILURE;
 		goto err;
 	}
 	hwid[modlen++] = '=';
-	serlen = sol11cmdk_get_modser(dkp, DIOCTL_GETSERIAL,
+	serlen = cmdk_get_modser(dkp, DIOCTL_GETSERIAL,
 	    hwid + modlen, CMDK_HWIDLEN - modlen);
 	if (serlen == 0) {
 		rc = DDI_FAILURE;
@@ -1444,9 +1444,9 @@ err:
 }
 
 static int
-sol11cmdk_get_modser(struct sol11cmdk *dkp, int ioccmd, char *buf, int len)
+cmdk_get_modser(struct cmdk *dkp, int ioccmd, char *buf, int len)
 {
-	sol11dadk_ioc_string_t strarg;
+	dadk_ioc_string_t strarg;
 	int		rval;
 	char		*s;
 	char		ch;
@@ -1456,7 +1456,7 @@ sol11cmdk_get_modser(struct sol11cmdk *dkp, int ioccmd, char *buf, int len)
 
 	strarg.is_buf = buf;
 	strarg.is_size = len;
-	if (sol11dadk_ioctl(DKTP_DATA,
+	if (dadk_ioctl(DKTP_DATA,
 	    dkp->dk_dev,
 	    ioccmd,
 	    (uintptr_t)&strarg,
@@ -1491,7 +1491,7 @@ sol11cmdk_get_modser(struct sol11cmdk *dkp, int ioccmd, char *buf, int len)
  * Return DDI_SUCCESS or DDI_FAILURE.
  */
 static int
-sol11cmdk_devid_read(struct sol11cmdk *dkp)
+cmdk_devid_read(struct cmdk *dkp)
 {
 	diskaddr_t	blk;
 	struct dk_devid *dkdevidp;
@@ -1505,11 +1505,11 @@ sol11cmdk_devid_read(struct sol11cmdk *dkp)
 		goto err;
 
 	/* read the devid */
-	handle = sol11dadk_iob_alloc(DKTP_DATA, blk, NBPSCTR, KM_SLEEP);
+	handle = dadk_iob_alloc(DKTP_DATA, blk, NBPSCTR, KM_SLEEP);
 	if (handle == NULL)
 		goto err;
 
-	dkdevidp = (struct dk_devid *)sol11dadk_iob_xfer(DKTP_DATA, handle, B_READ);
+	dkdevidp = (struct dk_devid *)dadk_iob_xfer(DKTP_DATA, handle, B_READ);
 	if (dkdevidp == NULL)
 		goto err;
 
@@ -1539,7 +1539,7 @@ sol11cmdk_devid_read(struct sol11cmdk *dkp)
 
 err:
 	if (handle != NULL)
-		(void) sol11dadk_iob_free(DKTP_DATA, handle);
+		(void) dadk_iob_free(DKTP_DATA, handle);
 	return (rc);
 }
 
@@ -1549,7 +1549,7 @@ err:
  * Return DDI_SUCCESS or DDI_FAILURE.
  */
 static int
-sol11cmdk_devid_fabricate(struct sol11cmdk *dkp)
+cmdk_devid_fabricate(struct cmdk *dkp)
 {
 	ddi_devid_t	devid = NULL;	/* devid made by ddi_devid_init  */
 	struct dk_devid	*dkdevidp;	/* devid struct stored on disk */
@@ -1568,12 +1568,12 @@ sol11cmdk_devid_fabricate(struct sol11cmdk *dkp)
 		return (DDI_FAILURE);
 	}
 
-	handle = sol11dadk_iob_alloc(DKTP_DATA, blk, NBPSCTR, KM_SLEEP);
+	handle = dadk_iob_alloc(DKTP_DATA, blk, NBPSCTR, KM_SLEEP);
 	if (!handle)
 		goto err;
 
 	/* Locate the buffer */
-	dkdevidp = (struct dk_devid *)sol11dadk_iob_htoc(DKTP_DATA, handle);
+	dkdevidp = (struct dk_devid *)dadk_iob_htoc(DKTP_DATA, handle);
 
 	/* Fill in the revision */
 	bzero(dkdevidp, NBPSCTR);
@@ -1596,7 +1596,7 @@ sol11cmdk_devid_fabricate(struct sol11cmdk *dkp)
 	DKD_FORMCHKSUM(chksum, dkdevidp);
 
 	/* write the devid */
-	(void) sol11dadk_iob_xfer(DKTP_DATA, handle, B_WRITE);
+	(void) dadk_iob_xfer(DKTP_DATA, handle, B_WRITE);
 
 	dkp->dk_devid = devid;
 
@@ -1604,7 +1604,7 @@ sol11cmdk_devid_fabricate(struct sol11cmdk *dkp)
 
 err:
 	if (handle != NULL)
-		(void) sol11dadk_iob_free(DKTP_DATA, handle);
+		(void) dadk_iob_free(DKTP_DATA, handle);
 
 	if (rc != DDI_SUCCESS && devid != NULL)
 		ddi_devid_free(devid);
@@ -1613,10 +1613,10 @@ err:
 }
 
 static void
-sol11cmdk_bbh_free_alts(struct sol11cmdk *dkp)
+cmdk_bbh_free_alts(struct cmdk *dkp)
 {
 	if (dkp->dk_alts_hdl) {
-		(void) sol11dadk_iob_free(DKTP_DATA, dkp->dk_alts_hdl);
+		(void) dadk_iob_free(DKTP_DATA, dkp->dk_alts_hdl);
 		kmem_free(dkp->dk_slc_cnt,
 		    NDKMAP * (sizeof (uint32_t) + sizeof (struct alts_ent *)));
 		dkp->dk_alts_hdl = NULL;
@@ -1624,7 +1624,7 @@ sol11cmdk_bbh_free_alts(struct sol11cmdk *dkp)
 }
 
 static void
-sol11cmdk_bbh_reopen(struct sol11cmdk *dkp)
+cmdk_bbh_reopen(struct cmdk *dkp)
 {
 	tgdk_iob_handle 	handle = NULL;
 	diskaddr_t		slcb, slcn, slce;
@@ -1657,12 +1657,12 @@ sol11cmdk_bbh_reopen(struct sol11cmdk *dkp)
 	}
 
 	/* read in ALTS label block */
-	handle = sol11dadk_iob_alloc(DKTP_DATA, slcb, NBPSCTR, KM_SLEEP);
+	handle = dadk_iob_alloc(DKTP_DATA, slcb, NBPSCTR, KM_SLEEP);
 	if (!handle) {
 		goto empty;
 	}
 
-	ap = (struct alts_parttbl *)sol11dadk_iob_xfer(DKTP_DATA, handle, B_READ);
+	ap = (struct alts_parttbl *)dadk_iob_xfer(DKTP_DATA, handle, B_READ);
 	if (!ap || (ap->alts_sanity != ALTS_SANITY)) {
 		goto empty;
 	}
@@ -1678,17 +1678,17 @@ sol11cmdk_bbh_reopen(struct sol11cmdk *dkp)
 	    altlast >= slcn) {
 		goto empty;
 	}
-	(void) sol11dadk_iob_free(DKTP_DATA, handle);
+	(void) dadk_iob_free(DKTP_DATA, handle);
 
 	/* read in ALTS remapping table */
-	handle = sol11dadk_iob_alloc(DKTP_DATA,
+	handle = dadk_iob_alloc(DKTP_DATA,
 	    slcb + altbase,
 	    (altlast - altbase + 1) << SCTRSHFT, KM_SLEEP);
 	if (!handle) {
 		goto empty;
 	}
 
-	enttblp = (struct alts_ent *)sol11dadk_iob_xfer(DKTP_DATA, handle, B_READ);
+	enttblp = (struct alts_ent *)dadk_iob_xfer(DKTP_DATA, handle, B_READ);
 	if (!enttblp) {
 		goto empty;
 	}
@@ -1704,7 +1704,7 @@ sol11cmdk_bbh_reopen(struct sol11cmdk *dkp)
 
 	/* free previous BB table (if any) */
 	if (dkp->dk_alts_hdl) {
-		(void) sol11dadk_iob_free(DKTP_DATA, dkp->dk_alts_hdl);
+		(void) dadk_iob_free(DKTP_DATA, dkp->dk_alts_hdl);
 		dkp->dk_alts_hdl = NULL;
 		dkp->dk_altused = 0;
 	}
@@ -1759,10 +1759,10 @@ empty:
 	rw_enter(&dkp->dk_bbh_mutex, RW_WRITER);
 empty1:
 	if (handle && handle != dkp->dk_alts_hdl)
-		(void) sol11dadk_iob_free(DKTP_DATA, handle);
+		(void) dadk_iob_free(DKTP_DATA, handle);
 
 	if (dkp->dk_alts_hdl) {
-		(void) sol11dadk_iob_free(DKTP_DATA, dkp->dk_alts_hdl);
+		(void) dadk_iob_free(DKTP_DATA, dkp->dk_alts_hdl);
 		dkp->dk_alts_hdl = NULL;
 	}
 
@@ -1771,7 +1771,7 @@ empty1:
 
 /*ARGSUSED*/
 static bbh_cookie_t
-sol11cmdk_bbh_htoc(opaque_t bbh_data, opaque_t handle)
+cmdk_bbh_htoc(opaque_t bbh_data, opaque_t handle)
 {
 	struct	bbh_handle *hp;
 	bbh_cookie_t ckp;
@@ -1784,7 +1784,7 @@ sol11cmdk_bbh_htoc(opaque_t bbh_data, opaque_t handle)
 
 /*ARGSUSED*/
 static void
-sol11cmdk_bbh_freehandle(opaque_t bbh_data, opaque_t handle)
+cmdk_bbh_freehandle(opaque_t bbh_data, opaque_t handle)
 {
 	struct	bbh_handle *hp;
 
@@ -1795,7 +1795,7 @@ sol11cmdk_bbh_freehandle(opaque_t bbh_data, opaque_t handle)
 
 
 /*
- *	sol11cmdk_bbh_gethandle remaps the bad sectors to alternates.
+ *	cmdk_bbh_gethandle remaps the bad sectors to alternates.
  *	There are 7 different cases when the comparison is made
  *	between the bad sector cluster and the disk section.
  *
@@ -1814,9 +1814,9 @@ sol11cmdk_bbh_freehandle(opaque_t bbh_data, opaque_t handle)
  */
 
 static opaque_t
-sol11cmdk_bbh_gethandle(opaque_t bbh_data, struct buf *bp)
+cmdk_bbh_gethandle(opaque_t bbh_data, struct buf *bp)
 {
-	struct sol11cmdk		*dkp = (struct sol11cmdk *)bbh_data;
+	struct cmdk		*dkp = (struct cmdk *)bbh_data;
 	struct bbh_handle	*hp;
 	struct bbh_cookie	*ckp;
 	struct alts_ent		*altp;
@@ -1860,7 +1860,7 @@ sol11cmdk_bbh_gethandle(opaque_t bbh_data, struct buf *bp)
 	 * binary search for the largest bad sector index in the alternate
 	 * entry table which overlaps or larger than the starting d_sec
 	 */
-	i = sol11cmdk_bbh_bsearch(altp, alts_used, GET_BP_SEC(bp));
+	i = cmdk_bbh_bsearch(altp, alts_used, GET_BP_SEC(bp));
 	/* if starting sector is > the largest bad sector, return */
 	if (i == -1) {
 		rw_exit(&dkp->dk_bbh_mutex);
@@ -1953,7 +1953,7 @@ sol11cmdk_bbh_gethandle(opaque_t bbh_data, struct buf *bp)
 }
 
 static int
-sol11cmdk_bbh_bsearch(struct alts_ent *buf, int cnt, daddr32_t key)
+cmdk_bbh_bsearch(struct alts_ent *buf, int cnt, daddr32_t key)
 {
 	int	i;
 	int	ind;

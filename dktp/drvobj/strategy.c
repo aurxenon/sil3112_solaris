@@ -164,7 +164,7 @@ fc_start_kstat(opaque_t queuep, char *devtype, int instance)
 		return (0);
 
 	if (!fcdp->ds_kstat) {
-		if (fcdp->ds_kstat = kstat_create("cmdk", instance, NULL,
+		if (fcdp->ds_kstat = kstat_create("sol11cmdk", instance, NULL,
 		    "disk", KSTAT_TYPE_IO, 1, KSTAT_FLAG_PERSISTENT)) {
 			kstat_install(fcdp->ds_kstat);
 		}
