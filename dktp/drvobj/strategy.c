@@ -45,7 +45,7 @@
  *	Object Management
  */
 
-static struct buf *sol11qmerge_nextbp(struct sol11que_data *qfp, struct buf *bp_merge,
+static struct buf *qmerge_nextbp(struct que_data *qfp, struct buf *bp_merge,
     int *can_merge);
 
 static struct modlmisc modlmisc = {
@@ -89,64 +89,64 @@ _info(struct modinfo *modinfop)
 #define	DENT	0x0001
 #define	DERR	0x0002
 #define	DIO	0x0004
-static	int	sol11flc_debug = DENT|DERR|DIO;
+static	int	flc_debug = DENT|DERR|DIO;
 
 #include <sys/thread.h>
-static 	int	sol11flc_malloc_intr = 0;
+static 	int	flc_malloc_intr = 0;
 #endif	/* FLC_DEBUG */
 
-static	int	sol11flc_kstat = 1;
+static	int	flc_kstat = 1;
 
-static struct sol11flc_obj *sol11fc_create(struct sol11flc_objops *fcopsp);
-static int sol11fc_init(opaque_t queuep, opaque_t tgcom_objp, opaque_t sol11que_objp,
+static struct flc_obj *fc_create(struct flc_objops *fcopsp);
+static int fc_init(opaque_t queuep, opaque_t tgcom_objp, opaque_t que_objp,
     void *lkarg);
-static int sol11fc_free(struct sol11flc_obj *flcobjp);
-static int sol11fc_start_kstat(opaque_t queuep, char *devtype, int instance);
-static int sol11fc_stop_kstat(opaque_t queuep);
+static int fc_free(struct flc_obj *flcobjp);
+static int fc_start_kstat(opaque_t queuep, char *devtype, int instance);
+static int fc_stop_kstat(opaque_t queuep);
 
-static struct sol11flc_obj *
-sol11fc_create(struct sol11flc_objops *fcopsp)
+static struct flc_obj *
+fc_create(struct flc_objops *fcopsp)
 {
-	struct	sol11flc_obj *flcobjp;
-	struct	sol11fc_data *fcdp;
+	struct	flc_obj *flcobjp;
+	struct	fc_data *fcdp;
 
 	flcobjp = kmem_zalloc((sizeof (*flcobjp) + sizeof (*fcdp)), KM_NOSLEEP);
 	if (!flcobjp)
 		return (NULL);
 
-	fcdp = (struct sol11fc_data *)(flcobjp+1);
-	flcobjp->sol11flc_data = (opaque_t)fcdp;
-	flcobjp->sol11flc_ops  = fcopsp;
+	fcdp = (struct fc_data *)(flcobjp+1);
+	flcobjp->flc_data = (opaque_t)fcdp;
+	flcobjp->flc_ops  = fcopsp;
 
 	return ((opaque_t)flcobjp);
 }
 
-static int sol11dmult_maxcnt = DMULT_MAXCNT;
+static int dmult_maxcnt = DMULT_MAXCNT;
 
 static int
-sol11fc_init(opaque_t queuep, opaque_t tgcom_objp, opaque_t sol11que_objp, void *lkarg)
+fc_init(opaque_t queuep, opaque_t tgcom_objp, opaque_t que_objp, void *lkarg)
 {
-	struct sol11fc_data *fcdp = (struct sol11fc_data *)queuep;
+	struct fc_data *fcdp = (struct fc_data *)queuep;
 
 	mutex_init(&fcdp->ds_mutex, NULL, MUTEX_DRIVER, lkarg);
 
-	fcdp->ds_queobjp   = sol11que_objp;
+	fcdp->ds_queobjp   = que_objp;
 	fcdp->ds_tgcomobjp = tgcom_objp;
-	fcdp->ds_waitcnt   = sol11dmult_maxcnt;
+	fcdp->ds_waitcnt   = dmult_maxcnt;
 
-	SOL11QUE_INIT(sol11que_objp, lkarg);
+	QUE_INIT(que_objp, lkarg);
 	TGCOM_INIT(tgcom_objp);
 	return (DDI_SUCCESS);
 }
 
 static int
-sol11fc_free(struct sol11flc_obj *flcobjp)
+fc_free(struct flc_obj *flcobjp)
 {
-	struct sol11fc_data *fcdp;
+	struct fc_data *fcdp;
 
-	fcdp = (struct sol11fc_data *)flcobjp->sol11flc_data;
+	fcdp = (struct fc_data *)flcobjp->flc_data;
 	if (fcdp->ds_queobjp)
-		SOL11QUE_FREE(fcdp->ds_queobjp);
+		QUE_FREE(fcdp->ds_queobjp);
 	if (fcdp->ds_tgcomobjp) {
 		TGCOM_FREE(fcdp->ds_tgcomobjp);
 		mutex_destroy(&fcdp->ds_mutex);
@@ -157,14 +157,14 @@ sol11fc_free(struct sol11flc_obj *flcobjp)
 
 /*ARGSUSED*/
 static int
-sol11fc_start_kstat(opaque_t queuep, char *devtype, int instance)
+fc_start_kstat(opaque_t queuep, char *devtype, int instance)
 {
-	struct sol11fc_data *fcdp = (struct sol11fc_data *)queuep;
-	if (!sol11flc_kstat)
+	struct fc_data *fcdp = (struct fc_data *)queuep;
+	if (!flc_kstat)
 		return (0);
 
 	if (!fcdp->ds_kstat) {
-		if (fcdp->ds_kstat = kstat_create("sol11cmdk", instance, NULL,
+		if (fcdp->ds_kstat = kstat_create("cmdk", instance, NULL,
 		    "disk", KSTAT_TYPE_IO, 1, KSTAT_FLAG_PERSISTENT)) {
 			kstat_install(fcdp->ds_kstat);
 		}
@@ -173,9 +173,9 @@ sol11fc_start_kstat(opaque_t queuep, char *devtype, int instance)
 }
 
 static int
-sol11fc_stop_kstat(opaque_t queuep)
+fc_stop_kstat(opaque_t queuep)
 {
-	struct sol11fc_data *fcdp = (struct sol11fc_data *)queuep;
+	struct fc_data *fcdp = (struct fc_data *)queuep;
 
 	if (fcdp->ds_kstat) {
 		kstat_delete(fcdp->ds_kstat);
@@ -191,121 +191,121 @@ sol11fc_stop_kstat(opaque_t queuep)
 /*
  * Local Function Prototypes
  */
-static int sol11dsngl_restart();
+static int dsngl_restart();
 
-static int sol11dsngl_enque(opaque_t, struct buf *);
-static int sol11dsngl_deque(opaque_t, struct buf *);
+static int dsngl_enque(opaque_t, struct buf *);
+static int dsngl_deque(opaque_t, struct buf *);
 
-struct 	sol11flc_objops sol11dsngl_ops = {
-	sol11fc_init,
-	sol11fc_free,
-	sol11dsngl_enque,
-	sol11dsngl_deque,
-	sol11fc_start_kstat,
-	sol11fc_stop_kstat,
+struct 	flc_objops dsngl_ops = {
+	fc_init,
+	fc_free,
+	dsngl_enque,
+	dsngl_deque,
+	fc_start_kstat,
+	fc_stop_kstat,
 	0, 0
 };
 
-struct sol11flc_obj *
-sol11dsngl_create()
+struct flc_obj *
+dsngl_create()
 {
-	return (sol11fc_create((struct sol11flc_objops *)&sol11dsngl_ops));
+	return (fc_create((struct flc_objops *)&dsngl_ops));
 }
 
 static int
-sol11dsngl_enque(opaque_t queuep, struct buf *in_bp)
+dsngl_enque(opaque_t queuep, struct buf *in_bp)
 {
-	struct sol11fc_data *sol11dsnglp = (struct sol11fc_data *)queuep;
+	struct fc_data *dsnglp = (struct fc_data *)queuep;
 	opaque_t tgcom_objp;
-	opaque_t sol11que_objp;
+	opaque_t que_objp;
 
-	sol11que_objp   = sol11dsnglp->ds_queobjp;
-	tgcom_objp = sol11dsnglp->ds_tgcomobjp;
+	que_objp   = dsnglp->ds_queobjp;
+	tgcom_objp = dsnglp->ds_tgcomobjp;
 
 	if (!in_bp)
 		return (0);
-	mutex_enter(&sol11dsnglp->ds_mutex);
-	if (sol11dsnglp->ds_bp || sol11dsnglp->ds_outcnt) {
-		SOL11QUE_ADD(sol11que_objp, in_bp);
-		if (sol11dsnglp->ds_kstat) {
-			kstat_waitq_enter(KSTAT_IO_PTR(sol11dsnglp->ds_kstat));
+	mutex_enter(&dsnglp->ds_mutex);
+	if (dsnglp->ds_bp || dsnglp->ds_outcnt) {
+		QUE_ADD(que_objp, in_bp);
+		if (dsnglp->ds_kstat) {
+			kstat_waitq_enter(KSTAT_IO_PTR(dsnglp->ds_kstat));
 		}
-		mutex_exit(&sol11dsnglp->ds_mutex);
+		mutex_exit(&dsnglp->ds_mutex);
 		return (0);
 	}
-	if (sol11dsnglp->ds_kstat) {
-		kstat_waitq_enter(KSTAT_IO_PTR(sol11dsnglp->ds_kstat));
+	if (dsnglp->ds_kstat) {
+		kstat_waitq_enter(KSTAT_IO_PTR(dsnglp->ds_kstat));
 	}
-	if (TGCOM_PKT(tgcom_objp, in_bp, sol11dsngl_restart,
-		(caddr_t)sol11dsnglp) != DDI_SUCCESS) {
+	if (TGCOM_PKT(tgcom_objp, in_bp, dsngl_restart,
+		(caddr_t)dsnglp) != DDI_SUCCESS) {
 
-		sol11dsnglp->ds_bp = in_bp;
-		mutex_exit(&sol11dsnglp->ds_mutex);
+		dsnglp->ds_bp = in_bp;
+		mutex_exit(&dsnglp->ds_mutex);
 		return (0);
 	}
-	sol11dsnglp->ds_outcnt++;
-	if (sol11dsnglp->ds_kstat)
-		kstat_waitq_to_runq(KSTAT_IO_PTR(sol11dsnglp->ds_kstat));
-	mutex_exit(&sol11dsnglp->ds_mutex);
+	dsnglp->ds_outcnt++;
+	if (dsnglp->ds_kstat)
+		kstat_waitq_to_runq(KSTAT_IO_PTR(dsnglp->ds_kstat));
+	mutex_exit(&dsnglp->ds_mutex);
 	TGCOM_TRANSPORT(tgcom_objp, in_bp);
 	return (0);
 }
 
 static int
-sol11dsngl_deque(opaque_t queuep, struct buf *in_bp)
+dsngl_deque(opaque_t queuep, struct buf *in_bp)
 {
-	struct sol11fc_data *sol11dsnglp = (struct sol11fc_data *)queuep;
+	struct fc_data *dsnglp = (struct fc_data *)queuep;
 	opaque_t tgcom_objp;
-	opaque_t sol11que_objp;
+	opaque_t que_objp;
 	struct	 buf *bp;
 
-	sol11que_objp   = sol11dsnglp->ds_queobjp;
-	tgcom_objp = sol11dsnglp->ds_tgcomobjp;
+	que_objp   = dsnglp->ds_queobjp;
+	tgcom_objp = dsnglp->ds_tgcomobjp;
 
-	mutex_enter(&sol11dsnglp->ds_mutex);
+	mutex_enter(&dsnglp->ds_mutex);
 	if (in_bp) {
-		sol11dsnglp->ds_outcnt--;
-		if (sol11dsnglp->ds_kstat) {
+		dsnglp->ds_outcnt--;
+		if (dsnglp->ds_kstat) {
 			if (in_bp->b_flags & B_READ) {
-				KSTAT_IO_PTR(sol11dsnglp->ds_kstat)->reads++;
-				KSTAT_IO_PTR(sol11dsnglp->ds_kstat)->nread +=
+				KSTAT_IO_PTR(dsnglp->ds_kstat)->reads++;
+				KSTAT_IO_PTR(dsnglp->ds_kstat)->nread +=
 				    (in_bp->b_bcount - in_bp->b_resid);
 			} else {
-				KSTAT_IO_PTR(sol11dsnglp->ds_kstat)->writes++;
-				KSTAT_IO_PTR(sol11dsnglp->ds_kstat)->nwritten +=
+				KSTAT_IO_PTR(dsnglp->ds_kstat)->writes++;
+				KSTAT_IO_PTR(dsnglp->ds_kstat)->nwritten +=
 				    (in_bp->b_bcount - in_bp->b_resid);
 			}
-			kstat_runq_exit(KSTAT_IO_PTR(sol11dsnglp->ds_kstat));
+			kstat_runq_exit(KSTAT_IO_PTR(dsnglp->ds_kstat));
 		}
 	}
 	for (;;) {
-		if (!sol11dsnglp->ds_bp)
-			sol11dsnglp->ds_bp = SOL11QUE_DEL(sol11que_objp);
-		if (!sol11dsnglp->ds_bp ||
-		    (TGCOM_PKT(tgcom_objp, sol11dsnglp->ds_bp, sol11dsngl_restart,
-		    (caddr_t)sol11dsnglp) != DDI_SUCCESS) ||
-		    sol11dsnglp->ds_outcnt) {
-			mutex_exit(&sol11dsnglp->ds_mutex);
+		if (!dsnglp->ds_bp)
+			dsnglp->ds_bp = QUE_DEL(que_objp);
+		if (!dsnglp->ds_bp ||
+		    (TGCOM_PKT(tgcom_objp, dsnglp->ds_bp, dsngl_restart,
+		    (caddr_t)dsnglp) != DDI_SUCCESS) ||
+		    dsnglp->ds_outcnt) {
+			mutex_exit(&dsnglp->ds_mutex);
 			return (0);
 		}
-		sol11dsnglp->ds_outcnt++;
-		bp = sol11dsnglp->ds_bp;
-		sol11dsnglp->ds_bp = SOL11QUE_DEL(sol11que_objp);
-		if (sol11dsnglp->ds_kstat)
-			kstat_waitq_to_runq(KSTAT_IO_PTR(sol11dsnglp->ds_kstat));
-		mutex_exit(&sol11dsnglp->ds_mutex);
+		dsnglp->ds_outcnt++;
+		bp = dsnglp->ds_bp;
+		dsnglp->ds_bp = QUE_DEL(que_objp);
+		if (dsnglp->ds_kstat)
+			kstat_waitq_to_runq(KSTAT_IO_PTR(dsnglp->ds_kstat));
+		mutex_exit(&dsnglp->ds_mutex);
 
 		TGCOM_TRANSPORT(tgcom_objp, bp);
 
-		if (!mutex_tryenter(&sol11dsnglp->ds_mutex))
+		if (!mutex_tryenter(&dsnglp->ds_mutex))
 			return (0);
 	}
 }
 
 static int
-sol11dsngl_restart(struct sol11fc_data *sol11dsnglp)
+dsngl_restart(struct fc_data *dsnglp)
 {
-	(void) sol11dsngl_deque(sol11dsnglp, NULL);
+	(void) dsngl_deque(dsnglp, NULL);
 	return (-1);
 }
 
@@ -316,50 +316,50 @@ sol11dsngl_restart(struct sol11fc_data *sol11dsnglp)
 /*
  * Local Function Prototypes
  */
-static int sol11dmult_restart();
+static int dmult_restart();
 
-static int sol11dmult_enque(opaque_t, struct buf *);
-static int sol11dmult_deque(opaque_t, struct buf *);
+static int dmult_enque(opaque_t, struct buf *);
+static int dmult_deque(opaque_t, struct buf *);
 
-struct 	sol11flc_objops sol11dmult_ops = {
-	sol11fc_init,
-	sol11fc_free,
-	sol11dmult_enque,
-	sol11dmult_deque,
-	sol11fc_start_kstat,
-	sol11fc_stop_kstat,
+struct 	flc_objops dmult_ops = {
+	fc_init,
+	fc_free,
+	dmult_enque,
+	dmult_deque,
+	fc_start_kstat,
+	fc_stop_kstat,
 	0, 0
 };
 
-struct sol11flc_obj *
-sol11dmult_create()
+struct flc_obj *
+dmult_create()
 {
-	return (sol11fc_create((struct sol11flc_objops *)&sol11dmult_ops));
+	return (fc_create((struct flc_objops *)&dmult_ops));
 
 }
 
 
 /*
- * Some of the object management functions SOL11QUE_ADD() and SOL11QUE_DEL()
+ * Some of the object management functions QUE_ADD() and QUE_DEL()
  * do not accquire lock.
- * They depend on sol11dmult_enque(), sol11dmult_deque() to do all locking.
- * If this changes we have to grab locks in sol11qmerge_add() and sol11qmerge_del().
+ * They depend on dmult_enque(), dmult_deque() to do all locking.
+ * If this changes we have to grab locks in qmerge_add() and qmerge_del().
  */
 static int
-sol11dmult_enque(opaque_t queuep, struct buf *in_bp)
+dmult_enque(opaque_t queuep, struct buf *in_bp)
 {
-	struct sol11fc_data *dmultp = (struct sol11fc_data *)queuep;
+	struct fc_data *dmultp = (struct fc_data *)queuep;
 	opaque_t tgcom_objp;
-	opaque_t sol11que_objp;
+	opaque_t que_objp;
 
-	sol11que_objp   = dmultp->ds_queobjp;
+	que_objp   = dmultp->ds_queobjp;
 	tgcom_objp = dmultp->ds_tgcomobjp;
 
 	if (!in_bp)
 		return (0);
 	mutex_enter(&dmultp->ds_mutex);
 	if ((dmultp->ds_outcnt >= dmultp->ds_waitcnt) || dmultp->ds_bp) {
-		SOL11QUE_ADD(sol11que_objp, in_bp);
+		QUE_ADD(que_objp, in_bp);
 		if (dmultp->ds_kstat) {
 			kstat_waitq_enter(KSTAT_IO_PTR(dmultp->ds_kstat));
 		}
@@ -370,7 +370,7 @@ sol11dmult_enque(opaque_t queuep, struct buf *in_bp)
 		kstat_waitq_enter(KSTAT_IO_PTR(dmultp->ds_kstat));
 	}
 
-	if (TGCOM_PKT(tgcom_objp, in_bp, sol11dmult_restart,
+	if (TGCOM_PKT(tgcom_objp, in_bp, dmult_restart,
 		(caddr_t)dmultp) != DDI_SUCCESS) {
 
 		dmultp->ds_bp = in_bp;
@@ -387,14 +387,14 @@ sol11dmult_enque(opaque_t queuep, struct buf *in_bp)
 }
 
 static int
-sol11dmult_deque(opaque_t queuep, struct buf *in_bp)
+dmult_deque(opaque_t queuep, struct buf *in_bp)
 {
-	struct sol11fc_data *dmultp = (struct sol11fc_data *)queuep;
+	struct fc_data *dmultp = (struct fc_data *)queuep;
 	opaque_t tgcom_objp;
-	opaque_t sol11que_objp;
+	opaque_t que_objp;
 	struct	 buf *bp;
 
-	sol11que_objp = dmultp->ds_queobjp;
+	que_objp = dmultp->ds_queobjp;
 	tgcom_objp = dmultp->ds_tgcomobjp;
 
 	mutex_enter(&dmultp->ds_mutex);
@@ -419,13 +419,13 @@ sol11dmult_deque(opaque_t queuep, struct buf *in_bp)
 #ifdef	FLC_DEBUG
 		if ((curthread->t_intr) && (!dmultp->ds_bp) &&
 		    (!dmultp->ds_outcnt))
-			sol11flc_malloc_intr++;
+			flc_malloc_intr++;
 #endif
 
 		if (!dmultp->ds_bp)
-			dmultp->ds_bp = SOL11QUE_DEL(sol11que_objp);
+			dmultp->ds_bp = QUE_DEL(que_objp);
 		if (!dmultp->ds_bp ||
-		    (TGCOM_PKT(tgcom_objp, dmultp->ds_bp, sol11dmult_restart,
+		    (TGCOM_PKT(tgcom_objp, dmultp->ds_bp, dmult_restart,
 		    (caddr_t)dmultp) != DDI_SUCCESS) ||
 		    (dmultp->ds_outcnt >= dmultp->ds_waitcnt)) {
 			mutex_exit(&dmultp->ds_mutex);
@@ -433,7 +433,7 @@ sol11dmult_deque(opaque_t queuep, struct buf *in_bp)
 		}
 		dmultp->ds_outcnt++;
 		bp = dmultp->ds_bp;
-		dmultp->ds_bp = SOL11QUE_DEL(sol11que_objp);
+		dmultp->ds_bp = QUE_DEL(que_objp);
 
 		if (dmultp->ds_kstat)
 			kstat_waitq_to_runq(KSTAT_IO_PTR(dmultp->ds_kstat));
@@ -448,9 +448,9 @@ sol11dmult_deque(opaque_t queuep, struct buf *in_bp)
 }
 
 static int
-sol11dmult_restart(struct sol11fc_data *dmultp)
+dmult_restart(struct fc_data *dmultp)
 {
-	(void) sol11dmult_deque(dmultp, NULL);
+	(void) dmult_deque(dmultp, NULL);
 	return (-1);
 }
 
@@ -460,40 +460,40 @@ sol11dmult_restart(struct sol11fc_data *dmultp)
 /*
  * Local Function Prototypes
  */
-static int sol11duplx_restart();
+static int duplx_restart();
 
-static int sol11duplx_init(opaque_t queuep, opaque_t tgcom_objp, opaque_t sol11que_objp,
+static int duplx_init(opaque_t queuep, opaque_t tgcom_objp, opaque_t que_objp,
     void *lkarg);
-static int sol11duplx_free(struct sol11flc_obj *flcobjp);
-static int sol11duplx_enque(opaque_t queuep, struct buf *bp);
-static int sol11duplx_deque(opaque_t queuep, struct buf *bp);
+static int duplx_free(struct flc_obj *flcobjp);
+static int duplx_enque(opaque_t queuep, struct buf *bp);
+static int duplx_deque(opaque_t queuep, struct buf *bp);
 
-struct 	sol11flc_objops sol11duplx_ops = {
-	sol11duplx_init,
-	sol11duplx_free,
-	sol11duplx_enque,
-	sol11duplx_deque,
-	sol11fc_start_kstat,
-	sol11fc_stop_kstat,
+struct 	flc_objops duplx_ops = {
+	duplx_init,
+	duplx_free,
+	duplx_enque,
+	duplx_deque,
+	fc_start_kstat,
+	fc_stop_kstat,
 	0, 0
 };
 
-struct sol11flc_obj *
-sol11duplx_create()
+struct flc_obj *
+duplx_create()
 {
-	struct	sol11flc_obj *flcobjp;
-	struct	sol11duplx_data *fcdp;
+	struct	flc_obj *flcobjp;
+	struct	duplx_data *fcdp;
 
 	flcobjp = kmem_zalloc((sizeof (*flcobjp) + sizeof (*fcdp)), KM_NOSLEEP);
 	if (!flcobjp)
 		return (NULL);
 
-	fcdp = (struct sol11duplx_data *)(flcobjp+1);
-	flcobjp->sol11flc_data = (opaque_t)fcdp;
-	flcobjp->sol11flc_ops  = &sol11duplx_ops;
+	fcdp = (struct duplx_data *)(flcobjp+1);
+	flcobjp->flc_data = (opaque_t)fcdp;
+	flcobjp->flc_ops  = &duplx_ops;
 
-	fcdp->ds_writeq.sol11fc_qobjp = sol11qfifo_create();
-	if (!(fcdp->ds_writeq.sol11fc_qobjp = sol11qfifo_create())) {
+	fcdp->ds_writeq.fc_qobjp = qfifo_create();
+	if (!(fcdp->ds_writeq.fc_qobjp = qfifo_create())) {
 		kmem_free(flcobjp, (sizeof (*flcobjp) + sizeof (*fcdp)));
 		return (NULL);
 	}
@@ -501,16 +501,16 @@ sol11duplx_create()
 }
 
 static int
-sol11duplx_free(struct sol11flc_obj *flcobjp)
+duplx_free(struct flc_obj *flcobjp)
 {
-	struct sol11duplx_data *fcdp;
+	struct duplx_data *fcdp;
 
-	fcdp = (struct sol11duplx_data *)flcobjp->sol11flc_data;
-	if (fcdp->ds_writeq.sol11fc_qobjp) {
-		SOL11QUE_FREE(fcdp->ds_writeq.sol11fc_qobjp);
+	fcdp = (struct duplx_data *)flcobjp->flc_data;
+	if (fcdp->ds_writeq.fc_qobjp) {
+		QUE_FREE(fcdp->ds_writeq.fc_qobjp);
 	}
-	if (fcdp->ds_readq.sol11fc_qobjp)
-		SOL11QUE_FREE(fcdp->ds_readq.sol11fc_qobjp);
+	if (fcdp->ds_readq.fc_qobjp)
+		QUE_FREE(fcdp->ds_readq.fc_qobjp);
 	if (fcdp->ds_tgcomobjp) {
 		TGCOM_FREE(fcdp->ds_tgcomobjp);
 		mutex_destroy(&fcdp->ds_mutex);
@@ -520,20 +520,20 @@ sol11duplx_free(struct sol11flc_obj *flcobjp)
 }
 
 static int
-sol11duplx_init(opaque_t queuep, opaque_t tgcom_objp, opaque_t sol11que_objp, void *lkarg)
+duplx_init(opaque_t queuep, opaque_t tgcom_objp, opaque_t que_objp, void *lkarg)
 {
-	struct sol11duplx_data *fcdp = (struct sol11duplx_data *)queuep;
+	struct duplx_data *fcdp = (struct duplx_data *)queuep;
 	fcdp->ds_tgcomobjp = tgcom_objp;
-	fcdp->ds_readq.sol11fc_qobjp = sol11que_objp;
+	fcdp->ds_readq.fc_qobjp = que_objp;
 
-	SOL11QUE_INIT(sol11que_objp, lkarg);
-	SOL11QUE_INIT(fcdp->ds_writeq.sol11fc_qobjp, lkarg);
+	QUE_INIT(que_objp, lkarg);
+	QUE_INIT(fcdp->ds_writeq.fc_qobjp, lkarg);
 	TGCOM_INIT(tgcom_objp);
 
 	mutex_init(&fcdp->ds_mutex, NULL, MUTEX_DRIVER, lkarg);
 
-	fcdp->ds_writeq.sol11fc_maxcnt = DUPLX_MAXCNT;
-	fcdp->ds_readq.sol11fc_maxcnt  = DUPLX_MAXCNT;
+	fcdp->ds_writeq.fc_maxcnt = DUPLX_MAXCNT;
+	fcdp->ds_readq.fc_maxcnt  = DUPLX_MAXCNT;
 
 	/* queues point to each other for round robin */
 	fcdp->ds_readq.next = &fcdp->ds_writeq;
@@ -543,11 +543,11 @@ sol11duplx_init(opaque_t queuep, opaque_t tgcom_objp, opaque_t sol11que_objp, vo
 }
 
 static int
-sol11duplx_enque(opaque_t queuep, struct buf *in_bp)
+duplx_enque(opaque_t queuep, struct buf *in_bp)
 {
-	struct sol11duplx_data *duplxp = (struct sol11duplx_data *)queuep;
+	struct duplx_data *duplxp = (struct duplx_data *)queuep;
 	opaque_t tgcom_objp;
-	struct sol11fc_que *activeq;
+	struct fc_que *activeq;
 	struct buf *bp;
 
 	mutex_enter(&duplxp->ds_mutex);
@@ -560,7 +560,7 @@ sol11duplx_enque(opaque_t queuep, struct buf *in_bp)
 		else
 			activeq = &duplxp->ds_writeq;
 
-		SOL11QUE_ADD(activeq->sol11fc_qobjp, in_bp);
+		QUE_ADD(activeq->fc_qobjp, in_bp);
 	} else {
 		activeq = &duplxp->ds_readq;
 	}
@@ -568,29 +568,29 @@ sol11duplx_enque(opaque_t queuep, struct buf *in_bp)
 	tgcom_objp = duplxp->ds_tgcomobjp;
 
 	for (;;) {
-		if (!activeq->sol11fc_bp)
-			activeq->sol11fc_bp = SOL11QUE_DEL(activeq->sol11fc_qobjp);
-		if (!activeq->sol11fc_bp ||
-		    (TGCOM_PKT(tgcom_objp, activeq->sol11fc_bp, sol11duplx_restart,
+		if (!activeq->fc_bp)
+			activeq->fc_bp = QUE_DEL(activeq->fc_qobjp);
+		if (!activeq->fc_bp ||
+		    (TGCOM_PKT(tgcom_objp, activeq->fc_bp, duplx_restart,
 		    (caddr_t)duplxp) != DDI_SUCCESS) ||
-		    (activeq->sol11fc_outcnt >= activeq->sol11fc_maxcnt)) {
+		    (activeq->fc_outcnt >= activeq->fc_maxcnt)) {
 
 			/* switch read/write queues */
 			activeq = activeq->next;
-			if (!activeq->sol11fc_bp)
-				activeq->sol11fc_bp = SOL11QUE_DEL(activeq->sol11fc_qobjp);
-			if (!activeq->sol11fc_bp ||
-			    (TGCOM_PKT(tgcom_objp, activeq->sol11fc_bp,
-			    sol11duplx_restart, (caddr_t)duplxp) != DDI_SUCCESS) ||
-			    (activeq->sol11fc_outcnt >= activeq->sol11fc_maxcnt)) {
+			if (!activeq->fc_bp)
+				activeq->fc_bp = QUE_DEL(activeq->fc_qobjp);
+			if (!activeq->fc_bp ||
+			    (TGCOM_PKT(tgcom_objp, activeq->fc_bp,
+			    duplx_restart, (caddr_t)duplxp) != DDI_SUCCESS) ||
+			    (activeq->fc_outcnt >= activeq->fc_maxcnt)) {
 				mutex_exit(&duplxp->ds_mutex);
 				return (0);
 			}
 		}
 
-		activeq->sol11fc_outcnt++;
-		bp = activeq->sol11fc_bp;
-		activeq->sol11fc_bp = NULL;
+		activeq->fc_outcnt++;
+		bp = activeq->fc_bp;
+		activeq->fc_bp = NULL;
 
 		if (duplxp->ds_kstat)
 			kstat_waitq_to_runq(KSTAT_IO_PTR(duplxp->ds_kstat));
@@ -606,11 +606,11 @@ sol11duplx_enque(opaque_t queuep, struct buf *in_bp)
 }
 
 static int
-sol11duplx_deque(opaque_t queuep, struct buf *in_bp)
+duplx_deque(opaque_t queuep, struct buf *in_bp)
 {
-	struct sol11duplx_data *duplxp = (struct sol11duplx_data *)queuep;
+	struct duplx_data *duplxp = (struct duplx_data *)queuep;
 	opaque_t tgcom_objp;
-	struct sol11fc_que *activeq;
+	struct fc_que *activeq;
 	struct buf *bp;
 
 	mutex_enter(&duplxp->ds_mutex);
@@ -621,7 +621,7 @@ sol11duplx_deque(opaque_t queuep, struct buf *in_bp)
 		activeq = &duplxp->ds_readq;
 	else
 		activeq = &duplxp->ds_writeq;
-	activeq->sol11fc_outcnt--;
+	activeq->fc_outcnt--;
 
 	if (duplxp->ds_kstat) {
 		if (in_bp->b_flags & B_READ) {
@@ -639,30 +639,30 @@ sol11duplx_deque(opaque_t queuep, struct buf *in_bp)
 	for (;;) {
 
 		/* if needed, try to pull request off a queue */
-		if (!activeq->sol11fc_bp)
-			activeq->sol11fc_bp = SOL11QUE_DEL(activeq->sol11fc_qobjp);
+		if (!activeq->fc_bp)
+			activeq->fc_bp = QUE_DEL(activeq->fc_qobjp);
 
-		if (!activeq->sol11fc_bp ||
-		    (TGCOM_PKT(tgcom_objp, activeq->sol11fc_bp, sol11duplx_restart,
+		if (!activeq->fc_bp ||
+		    (TGCOM_PKT(tgcom_objp, activeq->fc_bp, duplx_restart,
 		    (caddr_t)duplxp) != DDI_SUCCESS) ||
-		    (activeq->sol11fc_outcnt >= activeq->sol11fc_maxcnt)) {
+		    (activeq->fc_outcnt >= activeq->fc_maxcnt)) {
 
 			activeq = activeq->next;
-			if (!activeq->sol11fc_bp)
-				activeq->sol11fc_bp = SOL11QUE_DEL(activeq->sol11fc_qobjp);
+			if (!activeq->fc_bp)
+				activeq->fc_bp = QUE_DEL(activeq->fc_qobjp);
 
-			if (!activeq->sol11fc_bp ||
-			    (TGCOM_PKT(tgcom_objp, activeq->sol11fc_bp,
-			    sol11duplx_restart, (caddr_t)duplxp) != DDI_SUCCESS) ||
-			    (activeq->sol11fc_outcnt >= activeq->sol11fc_maxcnt)) {
+			if (!activeq->fc_bp ||
+			    (TGCOM_PKT(tgcom_objp, activeq->fc_bp,
+			    duplx_restart, (caddr_t)duplxp) != DDI_SUCCESS) ||
+			    (activeq->fc_outcnt >= activeq->fc_maxcnt)) {
 				mutex_exit(&duplxp->ds_mutex);
 				return (0);
 			}
 		}
 
-		activeq->sol11fc_outcnt++;
-		bp = activeq->sol11fc_bp;
-		activeq->sol11fc_bp = NULL;
+		activeq->fc_outcnt++;
+		bp = activeq->fc_bp;
+		activeq->fc_bp = NULL;
 
 		if (duplxp->ds_kstat)
 			kstat_waitq_to_runq(KSTAT_IO_PTR(duplxp->ds_kstat));
@@ -679,9 +679,9 @@ sol11duplx_deque(opaque_t queuep, struct buf *in_bp)
 }
 
 static int
-sol11duplx_restart(struct sol11duplx_data *duplxp)
+duplx_restart(struct duplx_data *duplxp)
 {
-	(void) sol11duplx_enque(duplxp, NULL);
+	(void) duplx_enque(duplxp, NULL);
 	return (-1);
 }
 
@@ -692,20 +692,20 @@ sol11duplx_restart(struct sol11duplx_data *duplxp)
  * Local Function Prototypes
  */
 
-struct 	sol11flc_objops sol11adapt_ops = {
-	sol11fc_init,
-	sol11fc_free,
-	sol11dmult_enque,
-	sol11dmult_deque,
-	sol11fc_start_kstat,
-	sol11fc_stop_kstat,
+struct 	flc_objops adapt_ops = {
+	fc_init,
+	fc_free,
+	dmult_enque,
+	dmult_deque,
+	fc_start_kstat,
+	fc_stop_kstat,
 	0, 0
 };
 
-struct sol11flc_obj *
-sol11adapt_create()
+struct flc_obj *
+adapt_create()
 {
-	return (sol11fc_create((struct sol11flc_objops *)&sol11adapt_ops));
+	return (fc_create((struct flc_objops *)&adapt_ops));
 
 }
 
@@ -720,54 +720,54 @@ sol11adapt_create()
 #define	DENT	0x0001
 #define	DERR	0x0002
 #define	DIO	0x0004
-static	int	sol11que_debug = DENT|DERR|DIO;
+static	int	que_debug = DENT|DERR|DIO;
 
 #endif	/* Q_DEBUG */
 /*
  * 	Local Function Prototypes
  */
-static struct sol11que_obj *sol11que_create(struct sol11que_objops *qopsp);
-static int sol11que_init(struct sol11que_data *qfp, void *lkarg);
-static int sol11que_free(struct sol11que_obj *queobjp);
-static struct buf *sol11que_del(struct sol11que_data *qfp);
+static struct que_obj *que_create(struct que_objops *qopsp);
+static int que_init(struct que_data *qfp, void *lkarg);
+static int que_free(struct que_obj *queobjp);
+static struct buf *que_del(struct que_data *qfp);
 
-static struct sol11que_obj *
-sol11que_create(struct sol11que_objops *qopsp)
+static struct que_obj *
+que_create(struct que_objops *qopsp)
 {
-	struct	sol11que_data *qfp;
-	struct	sol11que_obj *queobjp;
+	struct	que_data *qfp;
+	struct	que_obj *queobjp;
 
 	queobjp = kmem_zalloc((sizeof (*queobjp) + sizeof (*qfp)), KM_NOSLEEP);
 	if (!queobjp)
 		return (NULL);
 
 	queobjp->que_ops = qopsp;
-	qfp = (struct sol11que_data *)(queobjp+1);
-	queobjp->sol11que_data = (opaque_t)qfp;
+	qfp = (struct que_data *)(queobjp+1);
+	queobjp->que_data = (opaque_t)qfp;
 
 	return ((opaque_t)queobjp);
 }
 
 static int
-sol11que_init(struct sol11que_data *qfp, void *lkarg)
+que_init(struct que_data *qfp, void *lkarg)
 {
 	mutex_init(&qfp->q_mutex, NULL, MUTEX_DRIVER, lkarg);
 	return (DDI_SUCCESS);
 }
 
 static int
-sol11que_free(struct sol11que_obj *queobjp)
+que_free(struct que_obj *queobjp)
 {
-	struct	sol11que_data *qfp;
+	struct	que_data *qfp;
 
-	qfp = (struct sol11que_data *)queobjp->sol11que_data;
+	qfp = (struct que_data *)queobjp->que_data;
 	mutex_destroy(&qfp->q_mutex);
-	kmem_free(queobjp, (sizeof (*queobjp) + sizeof (struct sol11que_data)));
+	kmem_free(queobjp, (sizeof (*queobjp) + sizeof (struct que_data)));
 	return (0);
 }
 
 static struct buf *
-sol11que_del(struct sol11que_data *qfp)
+que_del(struct que_data *qfp)
 {
 	struct buf *bp;
 
@@ -787,14 +787,14 @@ sol11que_del(struct sol11que_data *qfp)
  *	Qmerge
  * 	Local Function Prototypes
  */
-static int sol11qmerge_add(), sol11qmerge_free();
-static struct buf *sol11qmerge_del(struct sol11que_data *qfp);
+static int qmerge_add(), qmerge_free();
+static struct buf *qmerge_del(struct que_data *qfp);
 
-struct 	sol11que_objops sol11qmerge_ops = {
-	sol11que_init,
-	sol11qmerge_free,
-	sol11qmerge_add,
-	sol11qmerge_del,
+struct 	que_objops qmerge_ops = {
+	que_init,
+	qmerge_free,
+	qmerge_add,
+	qmerge_del,
 	0, 0
 };
 
@@ -824,64 +824,64 @@ struct 	sol11que_objops sol11qmerge_ops = {
 
 
 /*
- * sol11qmerge implements a two priority queue, the low priority queue holding ASYNC
+ * qmerge implements a two priority queue, the low priority queue holding ASYNC
  * write requests, while the rest are queued in the high priority sync queue.
  * Requests on the async queue would be merged if possible.
- * By default sol11qmerge2wayscan is 1, indicating an elevator algorithm. When
+ * By default qmerge2wayscan is 1, indicating an elevator algorithm. When
  * this variable is set to zero, it has the following side effects.
  * 1. We assume fairness is the number one issue.
  * 2. The next request to be picked indicates current head position.
  *
- * sol11qmerge_sync2async indicates the ratio of scans of high prioriy
+ * qmerge_sync2async indicates the ratio of scans of high prioriy
  * sync queue to low priority async queue.
  *
- * When sol11qmerge variables have the following values it defaults to sol11qsort
+ * When qmerge variables have the following values it defaults to qsort
  *
- * sol11qmerge1pri = 1, sol11qmerge2wayscan = 0, sol11qmerge_max_merge = 0
+ * qmerge1pri = 1, qmerge2wayscan = 0, qmerge_max_merge = 0
  *
  */
-static int	sol11qmerge_max_merge = 128 * 1024;
-static intptr_t	sol11qmerge_sync2async = 4;
-static int	sol11qmerge2wayscan = 1;
-static int	sol11qmerge1pri = 0;
-static int	sol11qmerge_merge = 0;
+static int	qmerge_max_merge = 128 * 1024;
+static intptr_t	qmerge_sync2async = 4;
+static int	qmerge2wayscan = 1;
+static int	qmerge1pri = 0;
+static int	qmerge_merge = 0;
 
 /*
  * 	Local static data
  */
-struct sol11que_obj *
-sol11qmerge_create()
+struct que_obj *
+qmerge_create()
 {
-	struct sol11que_data *qfp;
-	struct sol11que_obj *queobjp;
+	struct que_data *qfp;
+	struct que_obj *queobjp;
 
 	queobjp = kmem_zalloc((sizeof (*queobjp) + sizeof (*qfp)), KM_NOSLEEP);
 	if (!queobjp)
 		return (NULL);
 
-	queobjp->que_ops = &sol11qmerge_ops;
-	qfp = (struct sol11que_data *)(queobjp+1);
+	queobjp->que_ops = &qmerge_ops;
+	qfp = (struct que_data *)(queobjp+1);
 	qfp->q_tab.hd_private = qfp->q_tab.hd_private = 0;
 	qfp->q_tab.hd_sync_next = qfp->q_tab.hd_async_next = NULL;
-	qfp->q_tab.hd_cnt = (void *)sol11qmerge_sync2async;
-	queobjp->sol11que_data = (opaque_t)qfp;
+	qfp->q_tab.hd_cnt = (void *)qmerge_sync2async;
+	queobjp->que_data = (opaque_t)qfp;
 
 	return ((opaque_t)queobjp);
 }
 
 static int
-sol11qmerge_free(struct sol11que_obj *queobjp)
+qmerge_free(struct que_obj *queobjp)
 {
-	struct	sol11que_data *qfp;
+	struct	que_data *qfp;
 
-	qfp = (struct sol11que_data *)queobjp->sol11que_data;
+	qfp = (struct que_data *)queobjp->que_data;
 	mutex_destroy(&qfp->q_mutex);
 	kmem_free(queobjp, (sizeof (*queobjp) + sizeof (*qfp)));
 	return (0);
 }
 
 static int
-sol11qmerge_can_merge(bp1, bp2)
+qmerge_can_merge(bp1, bp2)
 struct	buf *bp1, *bp2;
 {
 	const int paw_flags = B_PAGEIO | B_ASYNC | B_WRITE;
@@ -890,7 +890,7 @@ struct	buf *bp1, *bp2;
 	    ((bp1->b_flags & (paw_flags | B_REMAPPED)) != paw_flags) ||
 	    ((bp2->b_flags & (paw_flags | B_REMAPPED)) != paw_flags) ||
 	    (bp1->b_bcount & PAGEOFFSET) || (bp2->b_bcount & PAGEOFFSET) ||
-	    (bp1->b_bcount + bp2->b_bcount > sol11qmerge_max_merge))
+	    (bp1->b_bcount + bp2->b_bcount > qmerge_max_merge))
 		return (0);
 
 	if ((DBLK(bp2) + bp2->b_bcount / DEV_BSIZE == DBLK(bp1)) ||
@@ -901,14 +901,14 @@ struct	buf *bp1, *bp2;
 }
 
 static void
-sol11qmerge_mergesetup(bp_merge, bp)
+qmerge_mergesetup(bp_merge, bp)
 struct	buf *bp_merge, *bp;
 {
 	struct	buf *bp1;
 	struct	page *pp, *pp_merge, *pp_merge_prev;
 	int	forward;
 
-	sol11qmerge_merge++;
+	qmerge_merge++;
 	forward = DBLK(bp_merge) < DBLK(bp);
 
 	bp_merge->b_bcount += bp->b_bcount;
@@ -938,7 +938,7 @@ struct	buf *bp_merge, *bp;
 }
 
 static void
-sol11que_insert(struct sol11que_data *qfp, struct buf *bp)
+que_insert(struct que_data *qfp, struct buf *bp)
 {
 	struct buf	*bp1, *bp_start, *lowest_bp, *highest_bp;
 	uintptr_t	highest_blk, lowest_blk;
@@ -953,7 +953,7 @@ sol11que_insert(struct sol11que_data *qfp, struct buf *bp)
 	 */
 	if (bp->av_back)
 		bp->b_error = (intptr_t)bp->av_back;
-	if (!sol11qmerge1pri &&
+	if (!qmerge1pri &&
 	    ((bp->b_flags & (B_ASYNC|B_READ|B_FREE)) == B_ASYNC)) {
 		bpp = &dp->hd_async_next;
 	} else {
@@ -1047,20 +1047,20 @@ sol11que_insert(struct sol11que_data *qfp, struct buf *bp)
 }
 
 /*
- * sol11dmult_enque() holds dmultp->ds_mutex lock, so we dont grab
- * lock here. If sol11dmult_enque() changes we will have to visit
+ * dmult_enque() holds dmultp->ds_mutex lock, so we dont grab
+ * lock here. If dmult_enque() changes we will have to visit
  * this function again
  */
 static int
-sol11qmerge_add(struct sol11que_data *qfp, struct buf *bp)
+qmerge_add(struct que_data *qfp, struct buf *bp)
 {
 
-	sol11que_insert(qfp, bp);
+	que_insert(qfp, bp);
 	return (++qfp->q_cnt);
 }
 
 static int
-sol11qmerge_iodone(struct buf *bp)
+qmerge_iodone(struct buf *bp)
 {
 	struct buf *bp1;
 	struct	page *pp, *pp1, *tmp_pp;
@@ -1100,7 +1100,7 @@ sol11qmerge_iodone(struct buf *bp)
 
 
 static struct buf *
-sol11qmerge_nextbp(struct sol11que_data *qfp, struct buf *bp_merge, int *can_merge)
+qmerge_nextbp(struct que_data *qfp, struct buf *bp_merge, int *can_merge)
 {
 	intptr_t	private, cnt;
 	int		flags;
@@ -1119,7 +1119,7 @@ begin_nextbp:
 	if (flags & QNEAR_ASYNCONLY) {
 		bp = *async_bpp;
 		private = DBLK(bp);
-		if (bp_merge && !sol11qmerge_can_merge(bp, bp_merge)) {
+		if (bp_merge && !qmerge_can_merge(bp, bp_merge)) {
 			return (NULL);
 		} else if (bp->av_forw == bp) {
 			bp->av_forw = bp->av_back = NULL;
@@ -1131,12 +1131,12 @@ begin_nextbp:
 				private = 0;
 			}
 		} else if (DBLK(bp) > DBLK(bp->av_forw)) {
-			if (sol11qmerge2wayscan) {
+			if (qmerge2wayscan) {
 				flags |= QNEAR_BACKWARD;
 			} else {
 				private = 0;
 			}
-		} else if (sol11qmerge2wayscan == 0) {
+		} else if (qmerge2wayscan == 0) {
 			private = DBLK(bp->av_forw);
 		}
 		bpp = async_bpp;
@@ -1149,7 +1149,7 @@ begin_nextbp:
 				flags &= ~(QNEAR_BACKWARD|QNEAR_ASYNCALSO);
 				*sync_bpp = sync_bp->av_forw;
 				*async_bpp = async_bp->av_forw;
-				SYNC2ASYNC(qfp) = (void *)sol11qmerge_sync2async;
+				SYNC2ASYNC(qfp) = (void *)qmerge_sync2async;
 				qfp->q_tab.hd_private = 0;
 				goto begin_nextbp;
 			}
@@ -1170,7 +1170,7 @@ begin_nextbp:
 			}
 		} else {
 			if (BP_LT_HD(sync_bp, dp) && BP_LT_HD(async_bp, dp)) {
-				if (sol11qmerge2wayscan) {
+				if (qmerge2wayscan) {
 					flags |= QNEAR_BACKWARD;
 					*sync_bpp = sync_bp->av_back;
 					*async_bpp = async_bp->av_back;
@@ -1178,7 +1178,7 @@ begin_nextbp:
 				} else {
 					flags &= ~QNEAR_ASYNCALSO;
 					SYNC2ASYNC(qfp) =
-						(void *)sol11qmerge_sync2async;
+						(void *)qmerge_sync2async;
 					qfp->q_tab.hd_private = 0;
 					goto begin_nextbp;
 				}
@@ -1199,13 +1199,13 @@ begin_nextbp:
 				bp = *sync_bpp;
 			}
 		}
-		if (bp_merge && !sol11qmerge_can_merge(bp, bp_merge)) {
+		if (bp_merge && !qmerge_can_merge(bp, bp_merge)) {
 			return (NULL);
 		} else if (bp->av_forw == bp) {
 			bp->av_forw = bp->av_back = NULL;
 			flags &= ~QNEAR_ASYNCALSO;
 			if (bpp == async_bpp) {
-				SYNC2ASYNC(qfp) = (void *)sol11qmerge_sync2async;
+				SYNC2ASYNC(qfp) = (void *)qmerge_sync2async;
 			} else {
 				flags |= QNEAR_ASYNCONLY;
 			}
@@ -1214,11 +1214,11 @@ begin_nextbp:
 	} else {
 		bp = *sync_bpp;
 		private = DBLK(bp);
-		if (bp_merge && !sol11qmerge_can_merge(bp, bp_merge)) {
+		if (bp_merge && !qmerge_can_merge(bp, bp_merge)) {
 			return (NULL);
 		} else if (bp->av_forw == bp) {
 			private = 0;
-			SYNC2ASYNC(qfp) = (void *)sol11qmerge_sync2async;
+			SYNC2ASYNC(qfp) = (void *)qmerge_sync2async;
 			bp->av_forw = bp->av_back = NULL;
 			flags &= ~QNEAR_BACKWARD;
 			if (*async_bpp)
@@ -1234,13 +1234,13 @@ begin_nextbp:
 					if (*async_bpp)
 						flags |= QNEAR_ASYNCALSO;
 					SYNC2ASYNC(qfp) =
-						(void *)sol11qmerge_sync2async;
+						(void *)qmerge_sync2async;
 				}
 				private = 0;
 			}
 		} else if (DBLK(bp) > DBLK(bp->av_forw)) {
 			private = 0;
-			if (sol11qmerge2wayscan) {
+			if (qmerge2wayscan) {
 				flags |= QNEAR_BACKWARD;
 				private = DBLK(bp);
 			} else {
@@ -1252,10 +1252,10 @@ begin_nextbp:
 					if (*async_bpp)
 						flags |= QNEAR_ASYNCALSO;
 					SYNC2ASYNC(qfp) =
-						(void *)sol11qmerge_sync2async;
+						(void *)qmerge_sync2async;
 				}
 			}
-		} else if (sol11qmerge2wayscan == 0) {
+		} else if (qmerge2wayscan == 0) {
 			private = DBLK(bp->av_forw);
 		}
 		bpp = sync_bpp;
@@ -1292,7 +1292,7 @@ begin_nextbp:
 }
 
 static struct buf *
-sol11qmerge_del(struct sol11que_data *qfp)
+qmerge_del(struct que_data *qfp)
 {
 	struct	buf *bp, *next_bp, *bp_merge;
 	int	alloc_mergebp, merge;
@@ -1301,9 +1301,9 @@ sol11qmerge_del(struct sol11que_data *qfp)
 		return (NULL);
 	}
 
-	bp_merge = bp = sol11qmerge_nextbp(qfp, NULL, &merge);
+	bp_merge = bp = qmerge_nextbp(qfp, NULL, &merge);
 	alloc_mergebp = 1;
-	while (merge && (next_bp = sol11qmerge_nextbp(qfp, bp_merge, &merge))) {
+	while (merge && (next_bp = qmerge_nextbp(qfp, bp_merge, &merge))) {
 		if (alloc_mergebp) {
 			bp_merge = kmem_alloc(sizeof (*bp_merge), KM_NOSLEEP);
 			if (bp_merge == NULL) {
@@ -1311,13 +1311,13 @@ sol11qmerge_del(struct sol11que_data *qfp)
 				return (bp);
 			}
 			bcopy(bp, bp_merge, sizeof (*bp_merge));
-			bp_merge->b_iodone = sol11qmerge_iodone;
+			bp_merge->b_iodone = qmerge_iodone;
 			bp_merge->b_forw = bp;
 			bp_merge->b_back = (struct buf *)qfp;
 			bp->av_forw = bp->av_back = bp;
 			alloc_mergebp = 0;
 		}
-		sol11qmerge_mergesetup(bp_merge, next_bp);
+		qmerge_mergesetup(bp_merge, next_bp);
 	}
 	return (bp_merge);
 }
@@ -1329,27 +1329,27 @@ sol11qmerge_del(struct sol11que_data *qfp)
 /*
  * 	Local Function Prototypes
  */
-static int sol11qfifo_add();
+static int qfifo_add();
 
-struct 	sol11que_objops sol11qfifo_ops = {
-	sol11que_init,
-	sol11que_free,
-	sol11qfifo_add,
-	sol11que_del,
+struct 	que_objops qfifo_ops = {
+	que_init,
+	que_free,
+	qfifo_add,
+	que_del,
 	0, 0
 };
 
 /*
  * 	Local static data
  */
-struct sol11que_obj *
-sol11qfifo_create()
+struct que_obj *
+qfifo_create()
 {
-	return (sol11que_create((struct sol11que_objops *)&sol11qfifo_ops));
+	return (que_create((struct que_objops *)&qfifo_ops));
 }
 
 static int
-sol11qfifo_add(struct sol11que_data *qfp, struct buf *bp)
+qfifo_add(struct que_data *qfp, struct buf *bp)
 {
 
 	if (!qfp->q_tab.b_actf)
@@ -1367,32 +1367,32 @@ sol11qfifo_add(struct sol11que_data *qfp, struct buf *bp)
 /*
  * 	Local Function Prototypes
  */
-static int sol11qsort_add();
-static struct buf *sol11qsort_del();
-static void sol11oneway_scan_binary(struct diskhd *dp, struct buf *bp);
+static int qsort_add();
+static struct buf *qsort_del();
+static void oneway_scan_binary(struct diskhd *dp, struct buf *bp);
 
-struct 	sol11que_objops sol11qsort_ops = {
-	sol11que_init,
-	sol11que_free,
-	sol11qsort_add,
-	sol11qsort_del,
+struct 	que_objops qsort_ops = {
+	que_init,
+	que_free,
+	qsort_add,
+	qsort_del,
 	0, 0
 };
 
 /*
  * 	Local static data
  */
-struct sol11que_obj *
-sol11qsort_create()
+struct que_obj *
+qsort_create()
 {
-	return (sol11que_create((struct sol11que_objops *)&sol11qsort_ops));
+	return (que_create((struct que_objops *)&qsort_ops));
 }
 
 static int
-sol11qsort_add(struct sol11que_data *qfp, struct buf *bp)
+qsort_add(struct que_data *qfp, struct buf *bp)
 {
 	qfp->q_cnt++;
-	sol11oneway_scan_binary(&qfp->q_tab, bp);
+	oneway_scan_binary(&qfp->q_tab, bp);
 	return (0);
 }
 
@@ -1400,7 +1400,7 @@ sol11qsort_add(struct sol11que_data *qfp, struct buf *bp)
 #define	b_pasf	b_forw
 #define	b_pasl	b_back
 static void
-sol11oneway_scan_binary(struct diskhd *dp, struct buf *bp)
+oneway_scan_binary(struct diskhd *dp, struct buf *bp)
 {
 	struct buf *ap;
 
@@ -1428,7 +1428,7 @@ sol11oneway_scan_binary(struct diskhd *dp, struct buf *bp)
 }
 
 static struct buf *
-sol11qsort_del(struct sol11que_data *qfp)
+qsort_del(struct que_data *qfp)
 {
 	struct buf *bp;
 
@@ -1453,19 +1453,19 @@ sol11qsort_del(struct sol11que_data *qfp)
  * 	Local Function Prototypes
  */
 
-struct 	sol11que_objops sol11qtag_ops = {
-	sol11que_init,
-	sol11que_free,
-	sol11qsort_add,
-	sol11qsort_del,
+struct 	que_objops qtag_ops = {
+	que_init,
+	que_free,
+	qsort_add,
+	qsort_del,
 	0, 0
 };
 
 /*
  * 	Local static data
  */
-struct sol11que_obj *
-sol11qtag_create()
+struct que_obj *
+qtag_create()
 {
-	return (sol11que_create((struct sol11que_objops *)&sol11qtag_ops));
+	return (que_create((struct que_objops *)&qtag_ops));
 }
