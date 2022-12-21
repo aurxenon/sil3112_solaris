@@ -38,29 +38,29 @@
 /*
  * Local functions
  */
-static	int	sol11atapi_start_cmd(sol11ata_ctl_t *sol11ata_ctlp, sol11ata_drv_t *sol11ata_drvp,
-				sol11ata_pkt_t *sol11ata_pktp);
-static	void	sol11atapi_send_cdb(sol11ata_ctl_t *sol11ata_ctlp, sol11ata_pkt_t *sol11ata_pktp);
-static	void	sol11atapi_start_dma(sol11ata_ctl_t *sol11ata_ctlp, sol11ata_drv_t *sol11ata_drvp,
-				sol11ata_pkt_t *sol11ata_pktp);
-static	void	sol11atapi_pio_data_in(sol11ata_ctl_t *sol11ata_ctlp, sol11ata_pkt_t *sol11ata_pktp);
-static	void	sol11atapi_pio_data_out(sol11ata_ctl_t *sol11ata_ctlp, sol11ata_pkt_t *sol11ata_pktp);
-static	void	sol11atapi_status(sol11ata_ctl_t *sol11ata_ctlp, sol11ata_pkt_t *sol11ata_pktp,
+static	int	atapi_start_cmd(ata_ctl_t *ata_ctlp, ata_drv_t *ata_drvp,
+				ata_pkt_t *ata_pktp);
+static	void	atapi_send_cdb(ata_ctl_t *ata_ctlp, ata_pkt_t *ata_pktp);
+static	void	atapi_start_dma(ata_ctl_t *ata_ctlp, ata_drv_t *ata_drvp,
+				ata_pkt_t *ata_pktp);
+static	void	atapi_pio_data_in(ata_ctl_t *ata_ctlp, ata_pkt_t *ata_pktp);
+static	void	atapi_pio_data_out(ata_ctl_t *ata_ctlp, ata_pkt_t *ata_pktp);
+static	void	atapi_status(ata_ctl_t *ata_ctlp, ata_pkt_t *ata_pktp,
 				uchar_t status, int dma_complete);
-static	void	sol11atapi_fsm_error(sol11ata_ctl_t *sol11ata_ctlp, uchar_t state,
+static	void	atapi_fsm_error(ata_ctl_t *ata_ctlp, uchar_t state,
 				uchar_t event);
 
 
 
 
 static void
-sol11atapi_fsm_error(
-	sol11ata_ctl_t *sol11ata_ctlp,
+atapi_fsm_error(
+	ata_ctl_t *ata_ctlp,
 	uchar_t	   state,
 	uchar_t	   event)
 {
-	ADBG_ERROR(("sol11atapi protocol error: 0x%p 0x%x 0x%x\n",
-	    sol11ata_ctlp->ac_data, state, event));
+	ADBG_ERROR(("atapi protocol error: 0x%p 0x%x 0x%x\n",
+	    ata_ctlp->ac_data, state, event));
 }
 
 
@@ -99,7 +99,7 @@ sol11atapi_fsm_error(
  *
  */
 
-uchar_t	sol11atapi_PioAction[ATAPI_NSTATES][ATAPI_NEVENTS] = {
+uchar_t	atapi_PioAction[ATAPI_NSTATES][ATAPI_NEVENTS] = {
 /* invalid dataout idle	  cdb	  invalid datain  status  future */
 { A_NADA, A_NADA, A_NADA, A_NADA, A_NADA, A_NADA, A_NADA, A_NADA }, /* Idle */
 { A_NADA, A_NADA, A_NADA, A_CDB,  A_NADA, A_NADA, A_RE,   A_NADA }, /* Cmd */
@@ -133,7 +133,7 @@ uchar_t	sol11atapi_PioAction[ATAPI_NSTATES][ATAPI_NEVENTS] = {
  *
  */
 
-uchar_t	sol11atapi_PioNextState[ATAPI_NSTATES][ATAPI_NEVENTS] = {
+uchar_t	atapi_PioNextState[ATAPI_NSTATES][ATAPI_NEVENTS] = {
 /* invalid dataout idle	  cdb	  invalid datain  status  future */
 { S_IDLE, S_IDLE, S_IDLE, S_IDLE, S_IDLE, S_IDLE, S_IDLE, S_IDLE}, /* idle */
 { S_CDB,  S_CDB,  S_CDB,  S_CDB,  S_CDB,  S_CDB,  S_IDLE, S_X   }, /* cmd */
@@ -145,13 +145,13 @@ uchar_t	sol11atapi_PioNextState[ATAPI_NSTATES][ATAPI_NEVENTS] = {
 
 
 static int
-sol11atapi_start_cmd(
-	sol11ata_ctl_t	*sol11ata_ctlp,
-	sol11ata_drv_t	*sol11ata_drvp,
-	sol11ata_pkt_t	*sol11ata_pktp)
+atapi_start_cmd(
+	ata_ctl_t	*ata_ctlp,
+	ata_drv_t	*ata_drvp,
+	ata_pkt_t	*ata_pktp)
 {
-	ddi_acc_handle_t io_hdl1 = sol11ata_ctlp->ac_iohandle1;
-	ddi_acc_handle_t io_hdl2 = sol11ata_ctlp->ac_iohandle2;
+	ddi_acc_handle_t io_hdl1 = ata_ctlp->ac_iohandle1;
+	ddi_acc_handle_t io_hdl2 = ata_ctlp->ac_iohandle2;
 
 	/*
 	 * Bug 1256489:
@@ -163,11 +163,11 @@ sol11atapi_start_cmd(
 	 * drop after a resume.
 	 */
 
-	if (sol11ata_ctlp->ac_timing_flags & AC_BSY_WAIT) {
-		if (!sol11ata_wait(io_hdl2, sol11ata_ctlp->ac_ioaddr2,
+	if (ata_ctlp->ac_timing_flags & AC_BSY_WAIT) {
+		if (!sol11ata_wait(io_hdl2, ata_ctlp->ac_ioaddr2,
 			0, ATS_BSY, 5000000)) {
-			ADBG_WARN(("sol11atapi_start: BSY too long!\n"));
-			sol11ata_pktp->ap_flags |= AP_ERROR;
+			ADBG_WARN(("atapi_start: BSY too long!\n"));
+			ata_pktp->ap_flags |= AP_ERROR;
 			return (ATA_FSM_RC_BUSY);
 		}
 	}
@@ -175,14 +175,14 @@ sol11atapi_start_cmd(
 	/*
 	 * Select the drive
 	 */
-	ddi_put8(io_hdl1, sol11ata_ctlp->ac_drvhd, sol11ata_pktp->ap_hd);
-	ATA_DELAY_400NSEC(io_hdl2, sol11ata_ctlp->ac_ioaddr2);
+	ddi_put8(io_hdl1, ata_ctlp->ac_drvhd, ata_pktp->ap_hd);
+	ATA_DELAY_400NSEC(io_hdl2, ata_ctlp->ac_ioaddr2);
 
 	/*
 	 * make certain the drive selected
 	 */
-	if (!sol11ata_wait(io_hdl2,  sol11ata_ctlp->ac_ioaddr2, 0, ATS_BSY, 5000000)) {
-		ADBG_ERROR(("sol11atapi_start_cmd: drive select failed\n"));
+	if (!sol11ata_wait(io_hdl2,  ata_ctlp->ac_ioaddr2, 0, ATS_BSY, 5000000)) {
+		ADBG_ERROR(("atapi_start_cmd: drive select failed\n"));
 		return (ATA_FSM_RC_BUSY);
 	}
 
@@ -193,44 +193,44 @@ sol11atapi_start_cmd(
 	 * easiest way to fix this is to always clear the disable bit
 	 * before every command.
 	 */
-	ddi_put8(io_hdl2, sol11ata_ctlp->ac_devctl, ATDC_D3);
+	ddi_put8(io_hdl2, ata_ctlp->ac_devctl, ATDC_D3);
 
-	ddi_put8(io_hdl1, sol11ata_ctlp->ac_lcyl, sol11ata_pktp->ap_lwcyl);
-	ddi_put8(io_hdl1, sol11ata_ctlp->ac_hcyl, sol11ata_pktp->ap_hicyl);
-	ddi_put8(io_hdl1, sol11ata_ctlp->ac_sect, sol11ata_pktp->ap_sec);
-	ddi_put8(io_hdl1, sol11ata_ctlp->ac_count, sol11ata_pktp->ap_count);
+	ddi_put8(io_hdl1, ata_ctlp->ac_lcyl, ata_pktp->ap_lwcyl);
+	ddi_put8(io_hdl1, ata_ctlp->ac_hcyl, ata_pktp->ap_hicyl);
+	ddi_put8(io_hdl1, ata_ctlp->ac_sect, ata_pktp->ap_sec);
+	ddi_put8(io_hdl1, ata_ctlp->ac_count, ata_pktp->ap_count);
 
-	if (sol11ata_pktp->ap_pciide_dma) {
+	if (ata_pktp->ap_pciide_dma) {
 
-		ASSERT((sol11ata_pktp->ap_flags & (AP_READ | AP_WRITE)) != 0);
+		ASSERT((ata_pktp->ap_flags & (AP_READ | AP_WRITE)) != 0);
 
 		/*
 		 * DMA but no Overlap
 		 */
-		ddi_put8(io_hdl1, sol11ata_ctlp->ac_feature, ATF_ATAPI_DMA);
+		ddi_put8(io_hdl1, ata_ctlp->ac_feature, ATF_ATAPI_DMA);
 
 		/*
 		 * copy the Scatter/Gather list to the controller's
 		 * Physical Region Descriptor Table
 		 */
-		sol11ata_pciide_dma_setup(sol11ata_ctlp, sol11ata_pktp->ap_sg_list,
-			sol11ata_pktp->ap_sg_cnt);
+		ata_pciide_dma_setup(ata_ctlp, ata_pktp->ap_sg_list,
+			ata_pktp->ap_sg_cnt);
 	} else {
 		/*
 		 * no DMA and no Overlap
 		 */
-		ddi_put8(io_hdl1, sol11ata_ctlp->ac_feature, 0);
+		ddi_put8(io_hdl1, ata_ctlp->ac_feature, 0);
 	}
 
 	/*
 	 * This next one sets the device in motion
 	 */
-	ddi_put8(io_hdl1, sol11ata_ctlp->ac_cmd, sol11ata_pktp->ap_cmd);
+	ddi_put8(io_hdl1, ata_ctlp->ac_cmd, ata_pktp->ap_cmd);
 
 	/* wait for the busy bit to settle */
-	ATA_DELAY_400NSEC(io_hdl2, sol11ata_ctlp->ac_ioaddr2);
+	ATA_DELAY_400NSEC(io_hdl2, ata_ctlp->ac_ioaddr2);
 
-	if (!(sol11ata_drvp->ad_flags & AD_NO_CDB_INTR)) {
+	if (!(ata_drvp->ad_flags & AD_NO_CDB_INTR)) {
 		/*
 		 * the device will send me an interrupt when it's
 		 * ready for the packet
@@ -251,7 +251,7 @@ sol11atapi_start_cmd(
 	 *
 	 * I'm not certain what the correct timeout should be.
 	 */
-	if (sol11ata_wait3(io_hdl2, sol11ata_ctlp->ac_ioaddr2,
+	if (ata_wait3(io_hdl2, ata_ctlp->ac_ioaddr2,
 		ATS_DRQ, ATS_BSY, /* okay */
 		ATS_ERR, ATS_BSY, /* cmd failed */
 		ATS_DF,  ATS_BSY, /* cmd failed */
@@ -260,10 +260,10 @@ sol11atapi_start_cmd(
 		return (ATA_FSM_RC_INTR);
 	}
 
-	ADBG_WARN(("sol11atapi_start_cmd: 0x%x status 0x%x error 0x%x\n",
-		sol11ata_pktp->ap_cmd,
-		ddi_get8(io_hdl2,  sol11ata_ctlp->ac_altstatus),
-		ddi_get8(io_hdl1, sol11ata_ctlp->ac_error)));
+	ADBG_WARN(("atapi_start_cmd: 0x%x status 0x%x error 0x%x\n",
+		ata_pktp->ap_cmd,
+		ddi_get8(io_hdl2,  ata_ctlp->ac_altstatus),
+		ddi_get8(io_hdl1, ata_ctlp->ac_error)));
 
 	return (ATA_FSM_RC_INTR);
 }
@@ -276,42 +276,42 @@ sol11atapi_start_cmd(
  */
 
 static void
-sol11atapi_send_cdb(
-	sol11ata_ctl_t	*sol11ata_ctlp,
-	sol11ata_pkt_t	*sol11ata_pktp)
+atapi_send_cdb(
+	ata_ctl_t	*ata_ctlp,
+	ata_pkt_t	*ata_pktp)
 {
-	ddi_acc_handle_t io_hdl1 = sol11ata_ctlp->ac_iohandle1;
-	ddi_acc_handle_t io_hdl2 = sol11ata_ctlp->ac_iohandle2;
+	ddi_acc_handle_t io_hdl1 = ata_ctlp->ac_iohandle1;
+	ddi_acc_handle_t io_hdl2 = ata_ctlp->ac_iohandle2;
 	int		 padding;
 
-	ADBG_TRACE(("sol11atapi_send_cdb entered\n"));
+	ADBG_TRACE(("atapi_send_cdb entered\n"));
 
 	/*
 	 * send the CDB to the drive
 	 */
-	ddi_rep_put16(io_hdl1, (ushort_t *)sol11ata_pktp->ap_cdbp, sol11ata_ctlp->ac_data,
-		sol11ata_pktp->ap_cdb_len >> 1, DDI_DEV_NO_AUTOINCR);
+	ddi_rep_put16(io_hdl1, (ushort_t *)ata_pktp->ap_cdbp, ata_ctlp->ac_data,
+		ata_pktp->ap_cdb_len >> 1, DDI_DEV_NO_AUTOINCR);
 
 	/*
 	 * pad to ad_cdb_len bytes
 	 */
 
-	padding = sol11ata_pktp->ap_cdb_pad;
+	padding = ata_pktp->ap_cdb_pad;
 
 	while (padding) {
-		ddi_put16(io_hdl1, sol11ata_ctlp->ac_data, 0);
+		ddi_put16(io_hdl1, ata_ctlp->ac_data, 0);
 		padding--;
 	}
 
 	/* wait for the busy bit to settle */
-	ATA_DELAY_400NSEC(io_hdl2, sol11ata_ctlp->ac_ioaddr2);
+	ATA_DELAY_400NSEC(io_hdl2, ata_ctlp->ac_ioaddr2);
 
 #ifdef ATA_DEBUG_XXX
 	{
-		uchar_t	*cp = sol11ata_pktp->ap_cdbp;
+		uchar_t	*cp = ata_pktp->ap_cdbp;
 
-		ADBG_TRANSPORT(("\tsol11atapi scsi cmd (%d bytes):\n ",
-				sol11ata_pktp->ap_cdb_len));
+		ADBG_TRANSPORT(("\tatapi scsi cmd (%d bytes):\n ",
+				ata_pktp->ap_cdb_len));
 		ADBG_TRANSPORT(("\t\t 0x%x 0x%x 0x%x 0x%x\n",
 			cp[0], cp[1], cp[2], cp[3]));
 		ADBG_TRANSPORT(("\t\t 0x%x 0x%x 0x%x 0x%x\n",
@@ -321,7 +321,7 @@ sol11atapi_send_cdb(
 	}
 #endif
 
-	sol11ata_pktp->ap_flags |= AP_SENT_CMD;
+	ata_pktp->ap_flags |= AP_SENT_CMD;
 }
 
 
@@ -332,10 +332,10 @@ sol11atapi_send_cdb(
 
 /* ARGSUSED */
 static void
-sol11atapi_start_dma(
-	sol11ata_ctl_t	*sol11ata_ctlp,
-	sol11ata_drv_t	*sol11ata_drvp,
-	sol11ata_pkt_t	*sol11ata_pktp)
+atapi_start_dma(
+	ata_ctl_t	*ata_ctlp,
+	ata_drv_t	*ata_drvp,
+	ata_pkt_t	*ata_pktp)
 {
 	uchar_t		 rd_wr;
 
@@ -347,7 +347,7 @@ sol11atapi_start_dma(
 	 * transferring data from the device to system memory, the
 	 * DMA engine performs PCI Write operations.
 	 */
-	if (sol11ata_pktp->ap_flags & AP_READ)
+	if (ata_pktp->ap_flags & AP_READ)
 		rd_wr = PCIIDE_BMICX_RWCON_WRITE_TO_MEMORY;
 	else
 		rd_wr = PCIIDE_BMICX_RWCON_READ_FROM_MEMORY;
@@ -355,7 +355,7 @@ sol11atapi_start_dma(
 	/*
 	 * Start the DMA engine
 	 */
-	sol11ata_pciide_dma_start(sol11ata_ctlp, rd_wr);
+	ata_pciide_dma_start(ata_ctlp, rd_wr);
 }
 
 
@@ -363,7 +363,7 @@ sol11atapi_start_dma(
 /*
  * Transfer the data from the device
  *
- * Note: the sol11atapi_pio_data_in() and sol11atapi_pio_data_out() functions
+ * Note: the atapi_pio_data_in() and atapi_pio_data_out() functions
  * are complicated a lot by the requirement to handle an odd byte count.
  * The only device we've seen which does this is the Hitachi CDR-7730.
  * See bug ID 1214595. It's my understanding that Dell stopped shipping
@@ -376,30 +376,30 @@ sol11atapi_start_dma(
  */
 
 static void
-sol11atapi_pio_data_in(
-	sol11ata_ctl_t	*sol11ata_ctlp,
-	sol11ata_pkt_t	*sol11ata_pktp)
+atapi_pio_data_in(
+	ata_ctl_t	*ata_ctlp,
+	ata_pkt_t	*ata_pktp)
 {
-	ddi_acc_handle_t io_hdl1 = sol11ata_ctlp->ac_iohandle1;
-	ddi_acc_handle_t io_hdl2 = sol11ata_ctlp->ac_iohandle2;
+	ddi_acc_handle_t io_hdl1 = ata_ctlp->ac_iohandle1;
+	ddi_acc_handle_t io_hdl2 = ata_ctlp->ac_iohandle2;
 	int		 drive_bytes;
 	int		 xfer_bytes;
 	int		 xfer_words;
 
-	sol11ata_pktp->ap_flags |= AP_XFERRED_DATA;
+	ata_pktp->ap_flags |= AP_XFERRED_DATA;
 
 	/*
 	 * Get the device's byte count for this transfer
 	 */
-	drive_bytes = ((int)ddi_get8(io_hdl1, sol11ata_ctlp->ac_hcyl) << 8)
-			+ ddi_get8(io_hdl1, sol11ata_ctlp->ac_lcyl);
+	drive_bytes = ((int)ddi_get8(io_hdl1, ata_ctlp->ac_hcyl) << 8)
+			+ ddi_get8(io_hdl1, ata_ctlp->ac_lcyl);
 
 	/*
 	 * Determine actual number I'm going to transfer. My
 	 * buffer might have fewer bytes than what the device
 	 * expects or handles on each interrupt.
 	 */
-	xfer_bytes = min(sol11ata_pktp->ap_resid, drive_bytes);
+	xfer_bytes = min(ata_pktp->ap_resid, drive_bytes);
 
 	ASSERT(xfer_bytes >= 0);
 
@@ -412,10 +412,10 @@ sol11atapi_pio_data_in(
 	if (xfer_words) {
 		int	byte_count = xfer_words * 2;
 
-		ddi_rep_get16(io_hdl1, (ushort_t *)sol11ata_pktp->ap_v_addr,
-			sol11ata_ctlp->ac_data, xfer_words, DDI_DEV_NO_AUTOINCR);
+		ddi_rep_get16(io_hdl1, (ushort_t *)ata_pktp->ap_v_addr,
+			ata_ctlp->ac_data, xfer_words, DDI_DEV_NO_AUTOINCR);
 
-		sol11ata_pktp->ap_v_addr += byte_count;
+		ata_pktp->ap_v_addr += byte_count;
 		drive_bytes -= byte_count;
 	}
 
@@ -426,29 +426,29 @@ sol11atapi_pio_data_in(
 	if (xfer_bytes & 1) {
 		ushort_t tmp_word;
 
-		tmp_word = ddi_get16(io_hdl1, sol11ata_ctlp->ac_data);
-		*sol11ata_pktp->ap_v_addr++ = tmp_word & 0xff;
+		tmp_word = ddi_get16(io_hdl1, ata_ctlp->ac_data);
+		*ata_pktp->ap_v_addr++ = tmp_word & 0xff;
 		drive_bytes -= 2;
 	}
 
-	sol11ata_pktp->ap_resid -= xfer_bytes;
+	ata_pktp->ap_resid -= xfer_bytes;
 
-	ADBG_TRANSPORT(("sol11atapi_pio_data_in: read 0x%x bytes\n", xfer_bytes));
+	ADBG_TRANSPORT(("atapi_pio_data_in: read 0x%x bytes\n", xfer_bytes));
 
 	/*
 	 * Discard any unwanted data.
 	 */
 	if (drive_bytes > 0) {
-		ADBG_TRANSPORT(("sol11atapi_pio_data_in: dump 0x%x bytes\n",
+		ADBG_TRANSPORT(("atapi_pio_data_in: dump 0x%x bytes\n",
 				drive_bytes));
 
 		/* rounded up if the drive_bytes count is odd */
 		for (; drive_bytes > 0; drive_bytes -= 2)
-			(void) ddi_get16(io_hdl1, sol11ata_ctlp->ac_data);
+			(void) ddi_get16(io_hdl1, ata_ctlp->ac_data);
 	}
 
 	/* wait for the busy bit to settle */
-	ATA_DELAY_400NSEC(io_hdl2, sol11ata_ctlp->ac_ioaddr2);
+	ATA_DELAY_400NSEC(io_hdl2, ata_ctlp->ac_ioaddr2);
 }
 
 
@@ -457,30 +457,30 @@ sol11atapi_pio_data_in(
  */
 
 static void
-sol11atapi_pio_data_out(
-	sol11ata_ctl_t	*sol11ata_ctlp,
-	sol11ata_pkt_t	*sol11ata_pktp)
+atapi_pio_data_out(
+	ata_ctl_t	*ata_ctlp,
+	ata_pkt_t	*ata_pktp)
 {
-	ddi_acc_handle_t io_hdl1 = sol11ata_ctlp->ac_iohandle1;
-	ddi_acc_handle_t io_hdl2 = sol11ata_ctlp->ac_iohandle2;
+	ddi_acc_handle_t io_hdl1 = ata_ctlp->ac_iohandle1;
+	ddi_acc_handle_t io_hdl2 = ata_ctlp->ac_iohandle2;
 	int		 drive_bytes;
 	int		 xfer_bytes;
 	int		 xfer_words;
 
-	sol11ata_pktp->ap_flags |= AP_XFERRED_DATA;
+	ata_pktp->ap_flags |= AP_XFERRED_DATA;
 
 	/*
 	 * Get the device's byte count for this transfer
 	 */
-	drive_bytes = ((int)ddi_get8(io_hdl1, sol11ata_ctlp->ac_hcyl) << 8)
-			+ ddi_get8(io_hdl1, sol11ata_ctlp->ac_lcyl);
+	drive_bytes = ((int)ddi_get8(io_hdl1, ata_ctlp->ac_hcyl) << 8)
+			+ ddi_get8(io_hdl1, ata_ctlp->ac_lcyl);
 
 	/*
 	 * Determine actual number I'm going to transfer. My
 	 * buffer might have fewer bytes than what the device
 	 * expects or handles on each interrupt.
 	 */
-	xfer_bytes = min(sol11ata_pktp->ap_resid, drive_bytes);
+	xfer_bytes = min(ata_pktp->ap_resid, drive_bytes);
 
 	/*
 	 * Round down my transfer count to whole words so that
@@ -491,9 +491,9 @@ sol11atapi_pio_data_out(
 	if (xfer_words) {
 		int	byte_count = xfer_words * 2;
 
-		ddi_rep_put16(io_hdl1, (ushort_t *)sol11ata_pktp->ap_v_addr,
-			sol11ata_ctlp->ac_data, xfer_words, DDI_DEV_NO_AUTOINCR);
-		sol11ata_pktp->ap_v_addr += byte_count;
+		ddi_rep_put16(io_hdl1, (ushort_t *)ata_pktp->ap_v_addr,
+			ata_ctlp->ac_data, xfer_words, DDI_DEV_NO_AUTOINCR);
+		ata_pktp->ap_v_addr += byte_count;
 	}
 
 	/*
@@ -506,16 +506,16 @@ sol11atapi_pio_data_out(
 		ushort_t tmp_word;
 
 		/* grab the last unsigned byte and widen it to 16-bits */
-		tmp_word = *sol11ata_pktp->ap_v_addr++;
-		ddi_put16(io_hdl1, sol11ata_ctlp->ac_data, tmp_word);
+		tmp_word = *ata_pktp->ap_v_addr++;
+		ddi_put16(io_hdl1, ata_ctlp->ac_data, tmp_word);
 	}
 
-	sol11ata_pktp->ap_resid -= xfer_bytes;
+	ata_pktp->ap_resid -= xfer_bytes;
 
-	ADBG_TRANSPORT(("sol11atapi_pio_data_out: wrote 0x%x bytes\n", xfer_bytes));
+	ADBG_TRANSPORT(("atapi_pio_data_out: wrote 0x%x bytes\n", xfer_bytes));
 
 	/* wait for the busy bit to settle */
-	ATA_DELAY_400NSEC(io_hdl2, sol11ata_ctlp->ac_ioaddr2);
+	ATA_DELAY_400NSEC(io_hdl2, ata_ctlp->ac_ioaddr2);
 }
 
 
@@ -525,23 +525,23 @@ sol11atapi_pio_data_out(
  *
  */
 static void
-sol11atapi_status(
-	sol11ata_ctl_t	*sol11ata_ctlp,
-	sol11ata_pkt_t	*sol11ata_pktp,
+atapi_status(
+	ata_ctl_t	*ata_ctlp,
+	ata_pkt_t	*ata_pktp,
 	uchar_t		 status,
 	int		 dma_completion)
 {
-	ddi_acc_handle_t io_hdl1 = sol11ata_ctlp->ac_iohandle1;
+	ddi_acc_handle_t io_hdl1 = ata_ctlp->ac_iohandle1;
 
-	sol11ata_pktp->ap_flags |= AP_GOT_STATUS;
+	ata_pktp->ap_flags |= AP_GOT_STATUS;
 
 	if (status & (ATS_DF | ATS_ERR)) {
-		sol11ata_pktp->ap_flags |= AP_ERROR;
+		ata_pktp->ap_flags |= AP_ERROR;
 	}
 
-	if (sol11ata_pktp->ap_flags & AP_ERROR) {
-		sol11ata_pktp->ap_status = status;
-		sol11ata_pktp->ap_error = ddi_get8(io_hdl1, sol11ata_ctlp->ac_error);
+	if (ata_pktp->ap_flags & AP_ERROR) {
+		ata_pktp->ap_status = status;
+		ata_pktp->ap_error = ddi_get8(io_hdl1, ata_ctlp->ac_error);
 	}
 
 
@@ -552,42 +552,42 @@ sol11atapi_status(
 	 * byte count. Otherwise, it all transferred so update
 	 * the flags and residual byte count.
 	 */
-	if (dma_completion && !(sol11ata_pktp->ap_flags & AP_TRAN_ERROR)) {
-		sol11ata_pktp->ap_flags |= AP_XFERRED_DATA;
-		sol11ata_pktp->ap_resid = 0;
+	if (dma_completion && !(ata_pktp->ap_flags & AP_TRAN_ERROR)) {
+		ata_pktp->ap_flags |= AP_XFERRED_DATA;
+		ata_pktp->ap_resid = 0;
 	}
 }
 
 
 static void
-sol11atapi_device_reset(
-	sol11ata_ctl_t	*sol11ata_ctlp,
-	sol11ata_drv_t	*sol11ata_drvp)
+atapi_device_reset(
+	ata_ctl_t	*ata_ctlp,
+	ata_drv_t	*ata_drvp)
 {
-	ddi_acc_handle_t io_hdl1 = sol11ata_ctlp->ac_iohandle1;
-	ddi_acc_handle_t io_hdl2 = sol11ata_ctlp->ac_iohandle2;
+	ddi_acc_handle_t io_hdl1 = ata_ctlp->ac_iohandle1;
+	ddi_acc_handle_t io_hdl2 = ata_ctlp->ac_iohandle2;
 
 	/* select the drive */
-	ddi_put8(io_hdl1, sol11ata_ctlp->ac_drvhd, sol11ata_drvp->ad_drive_bits);
-	ATA_DELAY_400NSEC(io_hdl2, sol11ata_ctlp->ac_ioaddr2);
+	ddi_put8(io_hdl1, ata_ctlp->ac_drvhd, ata_drvp->ad_drive_bits);
+	ATA_DELAY_400NSEC(io_hdl2, ata_ctlp->ac_ioaddr2);
 
-	/* issue sol11atapi DEVICE RESET */
-	ddi_put8(io_hdl1, sol11ata_ctlp->ac_cmd, ATC_DEVICE_RESET);
+	/* issue atapi DEVICE RESET */
+	ddi_put8(io_hdl1, ata_ctlp->ac_cmd, ATC_DEVICE_RESET);
 
 	/* wait for the busy bit to settle */
-	ATA_DELAY_400NSEC(io_hdl2, sol11ata_ctlp->ac_ioaddr2);
+	ATA_DELAY_400NSEC(io_hdl2, ata_ctlp->ac_ioaddr2);
 
 	/*
 	 * Re-select the drive (this is probably only necessary
 	 * when resetting drive 1).
 	 */
-	ddi_put8(io_hdl1, sol11ata_ctlp->ac_drvhd, sol11ata_drvp->ad_drive_bits);
-	ATA_DELAY_400NSEC(io_hdl2, sol11ata_ctlp->ac_ioaddr2);
+	ddi_put8(io_hdl1, ata_ctlp->ac_drvhd, ata_drvp->ad_drive_bits);
+	ATA_DELAY_400NSEC(io_hdl2, ata_ctlp->ac_ioaddr2);
 
 	/* allow the drive the full 6 seconds to respond */
 	/* LINTED */
-	if (!sol11ata_wait(io_hdl2, sol11ata_ctlp->ac_ioaddr2, 0, ATS_BSY, 6 * 1000000)) {
-		ADBG_WARN(("sol11atapi_device_reset: still busy\n"));
+	if (!sol11ata_wait(io_hdl2, ata_ctlp->ac_ioaddr2, 0, ATS_BSY, 6 * 1000000)) {
+		ADBG_WARN(("atapi_device_reset: still busy\n"));
 		/*
 		 * It's not clear to me what to do at this point,
 		 * the drive might be dead or might eventually
@@ -600,47 +600,47 @@ sol11atapi_device_reset(
 
 
 void
-sol11atapi_fsm_reset(sol11ata_ctl_t *sol11ata_ctlp)
+atapi_fsm_reset(ata_ctl_t *ata_ctlp)
 {
-	sol11ata_drv_t *sol11ata_drvp;
+	ata_drv_t *ata_drvp;
 	int	   drive;
 
 	/*
 	 * reset drive drive 0 and the drive 1
 	 */
 	for (drive = 0; drive <= 1; drive++) {
-		sol11ata_drvp = CTL2DRV(sol11ata_ctlp, drive, 0);
-		if (sol11ata_drvp && ATAPIDRV(sol11ata_drvp)) {
-			sol11ata_drvp->ad_state = S_IDLE;
-			sol11atapi_device_reset(sol11ata_ctlp, sol11ata_drvp);
+		ata_drvp = CTL2DRV(ata_ctlp, drive, 0);
+		if (ata_drvp && ATAPIDRV(ata_drvp)) {
+			ata_drvp->ad_state = S_IDLE;
+			atapi_device_reset(ata_ctlp, ata_drvp);
 		}
 	}
 }
 
 
 int
-sol11atapi_fsm_start(
-	sol11ata_ctl_t	*sol11ata_ctlp,
-	sol11ata_drv_t	*sol11ata_drvp,
-	sol11ata_pkt_t	*sol11ata_pktp)
+atapi_fsm_start(
+	ata_ctl_t	*ata_ctlp,
+	ata_drv_t	*ata_drvp,
+	ata_pkt_t	*ata_pktp)
 {
 	int		 rc;
 
-	ADBG_TRACE(("sol11atapi_start entered\n"));
-	ADBG_TRANSPORT(("sol11atapi_start: pkt = 0x%p\n", sol11ata_pktp));
+	ADBG_TRACE(("atapi_start entered\n"));
+	ADBG_TRANSPORT(("atapi_start: pkt = 0x%p\n", ata_pktp));
 
 	/*
 	 * check for valid state
 	 */
-	if (sol11ata_drvp->ad_state != S_IDLE) {
-		ADBG_ERROR(("sol11atapi_fsm_start not idle 0x%x\n",
-			    sol11ata_drvp->ad_state));
+	if (ata_drvp->ad_state != S_IDLE) {
+		ADBG_ERROR(("atapi_fsm_start not idle 0x%x\n",
+			    ata_drvp->ad_state));
 		return (ATA_FSM_RC_BUSY);
 	} else {
-		sol11ata_drvp->ad_state = S_CMD;
+		ata_drvp->ad_state = S_CMD;
 	}
 
-	rc = sol11atapi_start_cmd(sol11ata_ctlp, sol11ata_drvp, sol11ata_pktp);
+	rc = atapi_start_cmd(ata_ctlp, ata_drvp, ata_pktp);
 
 	switch (rc) {
 	case ATA_FSM_RC_OKAY:
@@ -664,7 +664,7 @@ sol11atapi_fsm_start(
 		 * The command wouldn't start, tell the upper layer to
 		 * stick this request on the done queue.
 		 */
-		sol11ata_drvp->ad_state = S_IDLE;
+		ata_drvp->ad_state = S_IDLE;
 		return (ATA_FSM_RC_BUSY);
 	}
 	return (rc);
@@ -680,12 +680,12 @@ sol11atapi_fsm_start(
  */
 
 int
-sol11atapi_fsm_intr(
-	sol11ata_ctl_t	*sol11ata_ctlp,
-	sol11ata_drv_t	*sol11ata_drvp,
-	sol11ata_pkt_t	*sol11ata_pktp)
+atapi_fsm_intr(
+	ata_ctl_t	*ata_ctlp,
+	ata_drv_t	*ata_drvp,
+	ata_pkt_t	*ata_pktp)
 {
-	ddi_acc_handle_t io_hdl1 = sol11ata_ctlp->ac_iohandle1;
+	ddi_acc_handle_t io_hdl1 = ata_ctlp->ac_iohandle1;
 	uchar_t		 status;
 	uchar_t		 intr_reason;
 	uchar_t		 state;
@@ -696,7 +696,7 @@ sol11atapi_fsm_intr(
 	/*
 	 * get the prior state
 	 */
-	state = sol11ata_drvp->ad_state;
+	state = ata_drvp->ad_state;
 
 	/*
 	 * If doing DMA, then:
@@ -713,15 +713,15 @@ sol11atapi_fsm_intr(
 	 */
 	switch (state) {
 	case S_DMA:
-		ASSERT(sol11ata_pktp->ap_pciide_dma == TRUE);
+		ASSERT(ata_pktp->ap_pciide_dma == TRUE);
 		/*
 		 * Halt the DMA engine. When we reach this point
 		 * we already know for certain that the device has
-		 * an interrupt pending since the sol11ata_get_status()
+		 * an interrupt pending since the ata_get_status()
 		 * function already checked the PCI-IDE interrupt
 		 * status bit.
 		 */
-		sol11ata_pciide_dma_stop(sol11ata_ctlp);
+		ata_pciide_dma_stop(ata_ctlp);
 		/*FALLTHRU*/
 	case S_IDLE:
 	case S_CMD:
@@ -735,7 +735,7 @@ sol11atapi_fsm_intr(
 	/*
 	 * Clear the PCI-IDE latches and the drive's IRQ
 	 */
-	status = sol11ata_get_status_clear_intr(sol11ata_ctlp, sol11ata_pktp);
+	status = ata_get_status_clear_intr(ata_ctlp, ata_pktp);
 
 	/*
 	 * some non-compliant (i.e., NEC) drives don't
@@ -751,7 +751,7 @@ sol11atapi_fsm_intr(
 	/*
 	 * get the interrupt reason code
 	 */
-	intr_reason = ddi_get8(io_hdl1, sol11ata_ctlp->ac_count);
+	intr_reason = ddi_get8(io_hdl1, ata_ctlp->ac_count);
 
 	/*
 	 * encode the status and interrupt reason bits
@@ -763,12 +763,12 @@ sol11atapi_fsm_intr(
 	/*
 	 * determine the action for this event
 	 */
-	action = sol11atapi_PioAction[state][event];
+	action = atapi_PioAction[state][event];
 
 	/*
 	 * determine the new state
 	 */
-	sol11ata_drvp->ad_state = sol11atapi_PioNextState[state][event];
+	ata_drvp->ad_state = atapi_PioNextState[state][event];
 
 	switch (action) {
 	default:
@@ -785,7 +785,7 @@ sol11atapi_fsm_intr(
  *	complicated to implement correctly because if I send a
  *	DEVICE-RESET to drive 1 it deselects itself.
  */
-		ADBG_WARN(("sol11atapi_fsm_intr: Unsupported intr\n"));
+		ADBG_WARN(("atapi_fsm_intr: Unsupported intr\n"));
 		break;
 
 	case A_NADA:
@@ -794,51 +794,51 @@ sol11atapi_fsm_intr(
 
 	case A_CDB:
 		/*
-		 * send out sol11atapi pkt
+		 * send out atapi pkt
 		 */
-		sol11atapi_send_cdb(sol11ata_ctlp, sol11ata_pktp);
+		atapi_send_cdb(ata_ctlp, ata_pktp);
 
 		/*
 		 * start the DMA engine if necessary and change
 		 * the state variable to reflect not doing PIO
 		 */
-		if (sol11ata_pktp->ap_pciide_dma) {
-			sol11atapi_start_dma(sol11ata_ctlp, sol11ata_drvp, sol11ata_pktp);
-			sol11ata_drvp->ad_state = S_DMA;
+		if (ata_pktp->ap_pciide_dma) {
+			atapi_start_dma(ata_ctlp, ata_drvp, ata_pktp);
+			ata_drvp->ad_state = S_DMA;
 		}
 		break;
 
 	case A_IN:
-		if (!(sol11ata_pktp->ap_flags & AP_READ)) {
+		if (!(ata_pktp->ap_flags & AP_READ)) {
 			/*
 			 * maybe this was a spurious interrupt, just
 			 * spin for a bit and see if the drive
 			 * recovers
 			 */
-			sol11atapi_fsm_error(sol11ata_ctlp, state, event);
+			atapi_fsm_error(ata_ctlp, state, event);
 			drv_usecwait(100);
 			break;
 		}
 		/*
 		 * read in the data
 		 */
-		if (!sol11ata_pktp->ap_pciide_dma) {
-			sol11atapi_pio_data_in(sol11ata_ctlp, sol11ata_pktp);
+		if (!ata_pktp->ap_pciide_dma) {
+			atapi_pio_data_in(ata_ctlp, ata_pktp);
 		}
 		break;
 
 	case A_OUT:
-		if (!(sol11ata_pktp->ap_flags & AP_WRITE)) {
+		if (!(ata_pktp->ap_flags & AP_WRITE)) {
 			/* spin for a bit and see if the drive recovers */
-			sol11atapi_fsm_error(sol11ata_ctlp, state, event);
+			atapi_fsm_error(ata_ctlp, state, event);
 			drv_usecwait(100);
 			break;
 		}
 		/*
 		 * send out data
 		 */
-		if (!sol11ata_pktp->ap_pciide_dma) {
-			sol11atapi_pio_data_out(sol11ata_ctlp, sol11ata_pktp);
+		if (!ata_pktp->ap_pciide_dma) {
+			atapi_pio_data_out(ata_ctlp, ata_pktp);
 		}
 		break;
 
@@ -847,9 +847,9 @@ sol11atapi_fsm_intr(
 		 * The DRQ bit deasserted before or between the data
 		 * transfer phases.
 		 */
-		if (!sol11ata_drvp->ad_bogus_drq) {
-			sol11ata_drvp->ad_bogus_drq = TRUE;
-			sol11atapi_fsm_error(sol11ata_ctlp, state, event);
+		if (!ata_drvp->ad_bogus_drq) {
+			ata_drvp->ad_bogus_drq = TRUE;
+			atapi_fsm_error(ata_ctlp, state, event);
 		}
 		drv_usecwait(100);
 		break;
@@ -860,7 +860,7 @@ sol11atapi_fsm_intr(
 		 *
 		 * check status of completed command
 		 */
-		sol11atapi_status(sol11ata_ctlp, sol11ata_pktp, status,
+		atapi_status(ata_ctlp, ata_pktp, status,
 			(state == S_DMA) ? TRUE : FALSE);
 
 		return (ATA_FSM_RC_FINI);
@@ -870,12 +870,12 @@ sol11atapi_fsm_intr(
 		 * some NEC drives don't report the right interrupt
 		 * reason code for the status phase
 		 */
-		if (!sol11ata_drvp->ad_nec_bad_status) {
-			sol11ata_drvp->ad_nec_bad_status = TRUE;
-			sol11atapi_fsm_error(sol11ata_ctlp, state, event);
+		if (!ata_drvp->ad_nec_bad_status) {
+			ata_drvp->ad_nec_bad_status = TRUE;
+			atapi_fsm_error(ata_ctlp, state, event);
 			drv_usecwait(100);
 		}
-		sol11atapi_status(sol11ata_ctlp, sol11ata_pktp, status,
+		atapi_status(ata_ctlp, ata_pktp, status,
 			(state == S_DMA) ? TRUE : FALSE);
 		return (ATA_FSM_RC_FINI);
 

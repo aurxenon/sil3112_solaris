@@ -44,7 +44,7 @@ extern "C" {
 #ifdef	ATA_DEBUG
 #define	ADBG_ERROR(fmt)		ADBG_FLAG_CHK(ADBG_FLAG_ERROR, fmt)
 #else
-#define	ADBG_ERROR(fmt)	sol11ghd_err fmt
+#define	ADBG_ERROR(fmt)	ghd_err fmt
 #endif
 
 /*
@@ -57,6 +57,7 @@ extern "C" {
 #define	ADBG_TRANSPORT(fmt)	ADBG_FLAG_CHK(ADBG_FLAG_TRANSPORT, fmt)
 #define	ADBG_DMA(fmt)		ADBG_FLAG_CHK(ADBG_FLAG_DMA, fmt)
 #define	ADBG_ARQ(fmt)		ADBG_FLAG_CHK(ADBG_FLAG_ARQ, fmt)
+
 
 
 

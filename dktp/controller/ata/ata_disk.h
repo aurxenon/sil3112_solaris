@@ -66,7 +66,7 @@ extern "C" {
 #define	ATCM_LONGMODE	0x02    /* Use Long Mode (get/send data & ECC) 	*/
 
 #ifdef  DADKIO_RWCMD_READ
-#define	RWCMDP(pktp)  ((struct sol11dadkio_rwcmd *)((pktp)->cp_bp->b_back))
+#define	RWCMDP(pktp)  ((struct dadkio_rwcmd *)((pktp)->cp_bp->b_back))
 #endif
 
 /* useful macros */
@@ -79,16 +79,16 @@ extern "C" {
 
 /* public function prototypes */
 
-int	sol11ata_disk_attach(sol11ata_ctl_t *sol11ata_ctlp);
-void	sol11ata_disk_detach(sol11ata_ctl_t *sol11ata_ctlp);
-int	sol11ata_disk_init_drive(sol11ata_drv_t *sol11ata_drvp);
-void	sol11ata_disk_uninit_drive(sol11ata_drv_t *sol11ata_drvp);
+int	ata_disk_attach(ata_ctl_t *ata_ctlp);
+void	ata_disk_detach(ata_ctl_t *ata_ctlp);
+int	sol11ata_disk_init_drive(ata_drv_t *ata_drvp);
+void	ata_disk_uninit_drive(ata_drv_t *ata_drvp);
 int	sol11ata_disk_id(ddi_acc_handle_t io_hdl1, caddr_t ioaddr1,
 		ddi_acc_handle_t io_hdl2, caddr_t ioaddr2,
-		struct sol11ata_id *sol11ata_idp);
+		struct ata_id *ata_idp);
 int	sol11ata_disk_bus_ctl(dev_info_t *d, dev_info_t *r, ddi_ctl_enum_t o,
 		void *a, void *v);
-int	sol11ata_disk_setup_parms(sol11ata_ctl_t *sol11ata_ctlp, sol11ata_drv_t *sol11ata_drvp);
+int	ata_disk_setup_parms(ata_ctl_t *ata_ctlp, ata_drv_t *ata_drvp);
 
 #ifdef	__cplusplus
 }

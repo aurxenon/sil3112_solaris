@@ -36,12 +36,12 @@ extern "C" {
 
 #include <sys/types.h>
 
-void	scsi_htos_3byte(uchar_t *ap, ulong_t nav);
-void	scsi_htos_long(uchar_t *ap, ulong_t niv);
-void	scsi_htos_short(uchar_t *ap, ushort_t nsv);
-ulong_t	scsi_stoh_3byte(uchar_t *ap);
-ulong_t	scsi_stoh_long(ulong_t ai);
-ushort_t scsi_stoh_short(ushort_t as);
+void	sol11scsi_htos_3byte(uchar_t *ap, ulong_t nav);
+void	sol11scsi_htos_long(uchar_t *ap, ulong_t niv);
+void	sol11scsi_htos_short(uchar_t *ap, ushort_t nsv);
+ulong_t	sol11scsi_stoh_3byte(uchar_t *ap);
+ulong_t	sol11scsi_stoh_long(ulong_t ai);
+ushort_t sol11scsi_stoh_short(ushort_t as);
 
 
 #ifdef	__cplusplus

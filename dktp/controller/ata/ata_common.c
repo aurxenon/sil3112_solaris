@@ -47,80 +47,80 @@
  * Solaris Entry Points.
  */
 
-static	int	sol11ata_probe(dev_info_t *dip);
-static	int	sol11ata_attach(dev_info_t *dip, ddi_attach_cmd_t cmd);
-static	int	sol11ata_detach(dev_info_t *dip, ddi_detach_cmd_t cmd);
-static	int	sol11ata_bus_ctl(dev_info_t *d, dev_info_t *r, ddi_ctl_enum_t o,
+static	int	ata_probe(dev_info_t *dip);
+static	int	ata_attach(dev_info_t *dip, ddi_attach_cmd_t cmd);
+static	int	ata_detach(dev_info_t *dip, ddi_detach_cmd_t cmd);
+static	int	ata_bus_ctl(dev_info_t *d, dev_info_t *r, ddi_ctl_enum_t o,
 			void *a, void *v);
-static	uint_t	sol11ata_intr(caddr_t arg);
+static	uint_t	ata_intr(caddr_t arg);
 
 /*
  * GHD Entry points
  */
 
-static	int	sol11ata_get_status(void *hba_handle, void *intr_status);
-static	void	sol11ata_process_intr(void *hba_handle, void *intr_status);
-static	int	sol11ata_hba_start(void *handle, gcmd_t *gcmdp);
-static	void	sol11ata_hba_complete(void *handle, gcmd_t *gcmdp, int do_callback);
-static	int	sol11ata_timeout_func(void *hba_handle, gcmd_t  *gcmdp,
+static	int	ata_get_status(void *hba_handle, void *intr_status);
+static	void	ata_process_intr(void *hba_handle, void *intr_status);
+static	int	ata_hba_start(void *handle, gcmd_t *gcmdp);
+static	void	ata_hba_complete(void *handle, gcmd_t *gcmdp, int do_callback);
+static	int	ata_timeout_func(void *hba_handle, gcmd_t  *gcmdp,
 			gtgt_t *gtgtp, gact_t  action, int calltype);
 
 /*
  * Local Function Prototypes
  */
-static int sol11ata_prop_lookup_int(dev_t match_dev, dev_info_t *dip,
+static int ata_prop_lookup_int(dev_t match_dev, dev_info_t *dip,
 		    uint_t flags, char *name, int defvalue);
-static	int	sol11ata_ctlr_fsm(uchar_t fsm_func, sol11ata_ctl_t *sol11ata_ctlp,
-			sol11ata_drv_t *sol11ata_drvp, sol11ata_pkt_t *sol11ata_pktp,
+static	int	ata_ctlr_fsm(uchar_t fsm_func, ata_ctl_t *ata_ctlp,
+			ata_drv_t *ata_drvp, ata_pkt_t *ata_pktp,
 				int *DoneFlgp);
-static	void	sol11ata_destroy_controller(dev_info_t *dip);
-static	int	sol11ata_drive_type(uchar_t drvhd,
+static	void	ata_destroy_controller(dev_info_t *dip);
+static	int	ata_drive_type(uchar_t drvhd,
 			ddi_acc_handle_t io_hdl1, caddr_t ioaddr1,
 			ddi_acc_handle_t io_hdl2, caddr_t ioaddr2,
-			struct sol11ata_id *sol11ata_id_bufp);
-static	sol11ata_ctl_t *sol11ata_init_controller(dev_info_t *dip);
-static	sol11ata_drv_t *sol11ata_init_drive(sol11ata_ctl_t *sol11ata_ctlp,
+			struct ata_id *ata_id_bufp);
+static	ata_ctl_t *ata_init_controller(dev_info_t *dip);
+static	ata_drv_t *ata_init_drive(ata_ctl_t *ata_ctlp,
 			uchar_t targ, uchar_t lun);
-static	int	sol11ata_init_drive_pcidma(sol11ata_ctl_t *sol11ata_ctlp, sol11ata_drv_t *sol11ata_drvp,
+static	int	ata_init_drive_pcidma(ata_ctl_t *ata_ctlp, ata_drv_t *ata_drvp,
 			dev_info_t *tdip);
-static	int	sol11ata_flush_cache(sol11ata_ctl_t *sol11ata_ctlp, sol11ata_drv_t *sol11ata_drvp);
-static	void	sol11ata_init_pciide(dev_info_t *dip, sol11ata_ctl_t *sol11ata_ctlp);
-static	int	sol11ata_reset_bus(sol11ata_ctl_t *sol11ata_ctlp);
-static	int	sol11ata_setup_ioaddr(dev_info_t *dip,
+static	int	ata_flush_cache(ata_ctl_t *ata_ctlp, ata_drv_t *ata_drvp);
+static	void	ata_init_pciide(dev_info_t *dip, ata_ctl_t *ata_ctlp);
+static	int	ata_reset_bus(ata_ctl_t *ata_ctlp);
+static	int	ata_setup_ioaddr(dev_info_t *dip,
 			ddi_acc_handle_t *iohandle1, caddr_t *ioaddr1p,
 			ddi_acc_handle_t *iohandle2, caddr_t *ioaddr2p,
 			ddi_acc_handle_t *bm_hdlp, caddr_t *bm_addrp);
-static	int	sol11ata_software_reset(sol11ata_ctl_t *sol11ata_ctlp);
-static	int	sol11ata_start_arq(sol11ata_ctl_t *sol11ata_ctlp, sol11ata_drv_t *sol11ata_drvp,
-			sol11ata_pkt_t *sol11ata_pktp);
-static	int	sol11ata_strncmp(char *p1, char *p2, int cnt);
-static	void	sol11ata_uninit_drive(sol11ata_drv_t *sol11ata_drvp);
+static	int	ata_software_reset(ata_ctl_t *ata_ctlp);
+static	int	ata_start_arq(ata_ctl_t *ata_ctlp, ata_drv_t *ata_drvp,
+			ata_pkt_t *ata_pktp);
+static	int	ata_strncmp(char *p1, char *p2, int cnt);
+static	void	ata_uninit_drive(ata_drv_t *ata_drvp);
 
-static	int	sol11ata_check_pciide_blacklist(dev_info_t *dip, uint_t flags);
-static	int	sol11ata_check_revert_to_defaults(sol11ata_drv_t *sol11ata_drvp);
-static  void	sol11ata_show_transfer_mode(sol11ata_ctl_t *, sol11ata_drv_t *);
-static	int	sol11ata_spec_init_controller(dev_info_t *dip);
+static	int	ata_check_pciide_blacklist(dev_info_t *dip, uint_t flags);
+static	int	ata_check_revert_to_defaults(ata_drv_t *ata_drvp);
+static  void	ata_show_transfer_mode(ata_ctl_t *, ata_drv_t *);
+static	int	ata_spec_init_controller(dev_info_t *dip);
 
 
 /*
  * Local static data
  */
-static	void	*sol11ata_state;
+static	void	*ata_state;
 
-static	tmr_t	sol11ata_timer_conf; /* single timeout list for all instances */
-static	int	sol11ata_watchdog_usec = 100000; /* check timeouts every 100 ms */
+static	tmr_t	ata_timer_conf; /* single timeout list for all instances */
+static	int	ata_watchdog_usec = 100000; /* check timeouts every 100 ms */
 
-int	sol11ata_hba_start_watchdog = 1000;
-int	sol11ata_process_intr_watchdog = 1000;
-int	sol11ata_reset_bus_watchdog = 1000;
+int	ata_hba_start_watchdog = 1000;
+int	ata_process_intr_watchdog = 1000;
+int	ata_reset_bus_watchdog = 1000;
 
 
 /*
  * number of seconds to wait during various operations
  */
-int	sol11ata_flush_delay = 5 * 1000000;
-uint_t	sol11ata_set_feature_wait = 4 * 1000000;
-uint_t	sol11ata_flush_cache_wait = 60 * 1000000;	/* may take a long time */
+int	ata_flush_delay = 5 * 1000000;
+uint_t	ata_set_feature_wait = 4 * 1000000;
+uint_t	ata_flush_cache_wait = 60 * 1000000;	/* may take a long time */
 
 /*
  * Change this for SFF-8070i support. Currently SFF-8070i is
@@ -129,43 +129,43 @@ uint_t	sol11ata_flush_cache_wait = 60 * 1000000;	/* may take a long time */
  * SFF will either move their laslun field or provide a reliable
  * way to validate it.
  */
-int	sol11ata_enable_sol11atapi_luns = FALSE;
+int	ata_enable_atapi_luns = FALSE;
 
 /*
  * set this to disable all DMA requests
  */
-int	sol11ata_dma_disabled = FALSE;
+int	ata_dma_disabled = FALSE;
 
 /*
  * set this to TRUE to enable storing the IDENTIFY DEVICE result in the
- * "sol11ata" or "sol11atapi" property.
+ * "ata" or "sol11atapi" property.
  */
-int	sol11ata_id_debug = FALSE;
+int	ata_id_debug = FALSE;
 
 /*
  * set this to TRUE to enable logging device-capability data
  */
-int	sol11ata_capability_data = FALSE;
+int	ata_capability_data = FALSE;
 
-#define	ATAPRT(fmt)	sol11ghd_err fmt
+#define	ATAPRT(fmt)	ghd_err fmt
 
 /*
  * DMA selection message pointers
  */
-char *sol11ata_cntrl_DMA_sel_msg;
-char *sol11ata_dev_DMA_sel_msg;
+char *ata_cntrl_DMA_sel_msg;
+char *ata_dev_DMA_sel_msg;
 
 /*
  * bus nexus operations
  */
-static	struct bus_ops	 sol11ata_bus_ops;
+static	struct bus_ops	 ata_bus_ops;
 static	struct bus_ops	*scsa_bus_ops_p;
 
 /* ARGSUSED */
 static int
-sol11ata_open(dev_t *devp, int flag, int otyp, cred_t *cred_p)
+ata_open(dev_t *devp, int flag, int otyp, cred_t *cred_p)
 {
-	if (ddi_get_soft_state(sol11ata_state, getminor(*devp)) == NULL)
+	if (ddi_get_soft_state(ata_state, getminor(*devp)) == NULL)
 		return (ENXIO);
 
 	return (0);
@@ -178,18 +178,18 @@ sol11ata_open(dev_t *devp, int flag, int otyp, cred_t *cred_p)
  */
 /* ARGSUSED */
 static int
-sol11ata_read(dev_t dev, struct uio *uio_p, cred_t *cred_p)
+ata_read(dev_t dev, struct uio *uio_p, cred_t *cred_p)
 {
-	sol11ata_ctl_t *sol11ata_ctlp;
+	ata_ctl_t *ata_ctlp;
 	char	buf[18];
 	long len;
 
-	sol11ata_ctlp = ddi_get_soft_state(sol11ata_state, getminor(dev));
+	ata_ctlp = ddi_get_soft_state(ata_state, getminor(dev));
 
-	if (sol11ata_ctlp == NULL)
+	if (ata_ctlp == NULL)
 		return (ENXIO);
 
-	(void) sprintf(buf, "%p\n", (void *) sol11ata_ctlp->ac_ioaddr1);
+	(void) sprintf(buf, "%p\n", (void *) ata_ctlp->ac_ioaddr1);
 
 	len = strlen(buf) - uio_p->uio_offset;
 	len = min(uio_p->uio_resid,  len);
@@ -201,12 +201,12 @@ sol11ata_read(dev_t dev, struct uio *uio_p, cred_t *cred_p)
 }
 
 int
-sol11ata_devo_reset(
+ata_devo_reset(
 	dev_info_t *dip,
 	ddi_reset_cmd_t cmd)
 {
-	sol11ata_ctl_t *sol11ata_ctlp;
-	sol11ata_drv_t *sol11ata_drvp;
+	ata_ctl_t *ata_ctlp;
+	ata_drv_t *ata_drvp;
 	int	   instance;
 	int	   i;
 	int	   rc;
@@ -216,9 +216,9 @@ sol11ata_devo_reset(
 		return (0);
 
 	instance = ddi_get_instance(dip);
-	sol11ata_ctlp = ddi_get_soft_state(sol11ata_state, instance);
+	ata_ctlp = ddi_get_soft_state(ata_state, instance);
 
-	if (!sol11ata_ctlp)
+	if (!ata_ctlp)
 		return (0);
 
 	/*
@@ -226,29 +226,29 @@ sol11ata_devo_reset(
 	 */
 	flush_okay = TRUE;
 	for (i = 0; i < ATA_MAXTARG; i++) {
-		if ((sol11ata_drvp = CTL2DRV(sol11ata_ctlp, i, 0)) == 0)
+		if ((ata_drvp = CTL2DRV(ata_ctlp, i, 0)) == 0)
 			continue;
 		/* Don't revert to defaults for certain IBM drives */
-		if ((sol11ata_drvp->ad_flags & AD_DISK) != 0 &&
-		    ((sol11ata_drvp->ad_flags & AD_NORVRT) == 0)) {
+		if ((ata_drvp->ad_flags & AD_DISK) != 0 &&
+		    ((ata_drvp->ad_flags & AD_NORVRT) == 0)) {
 			/* Enable revert to defaults when reset */
-			(void) sol11ata_set_feature(sol11ata_ctlp, sol11ata_drvp, 0xCC, 0);
+			(void) sol11ata_set_feature(ata_ctlp, ata_drvp, 0xCC, 0);
 		}
 
 		/*
 		 * skip flush cache if device type is cdrom
 		 *
-		 * notes: the structure definitions for sol11ata_drvp->ad_id are
+		 * notes: the structure definitions for ata_drvp->ad_id are
 		 * defined for the ATA IDENTIFY_DEVICE, but if AD_ATAPI is set
 		 * the struct holds data for the ATAPI IDENTIFY_PACKET_DEVICE
 		 */
-		if (!IS_CDROM(sol11ata_drvp)) {
+		if (!IS_CDROM(ata_drvp)) {
 
 			/*
 			 * Try the ATA/ATAPI flush write cache command
 			 */
-			rc = sol11ata_flush_cache(sol11ata_ctlp, sol11ata_drvp);
-			ADBG_WARN(("sol11ata_flush_cache %s\n",
+			rc = ata_flush_cache(ata_ctlp, ata_drvp);
+			ADBG_WARN(("ata_flush_cache %s\n",
 				rc ? "okay" : "failed"));
 
 			if (!rc)
@@ -265,18 +265,18 @@ sol11ata_devo_reset(
 	 * just busy wait if any drive doesn't support FLUSH CACHE
 	 */
 	if (!flush_okay)
-		drv_usecwait(sol11ata_flush_delay);
+		drv_usecwait(ata_flush_delay);
 	return (0);
 }
 
 
-static struct cb_ops sol11ata_cb_ops = {
-	sol11ata_open,		/* open */
+static struct cb_ops ata_cb_ops = {
+	ata_open,		/* open */
 	nulldev,		/* close */
 	nodev,			/* strategy */
 	nodev,			/* print */
 	nodev,			/* dump */
-	sol11ata_read,		/* read */
+	ata_read,		/* read */
 	nodev,			/* write */
 	nodev,			/* ioctl */
 	nodev,			/* devmap */
@@ -291,16 +291,16 @@ static struct cb_ops sol11ata_cb_ops = {
 	nodev			/* awrite */
 };
 
-static struct dev_ops	sol11ata_ops = {
+static struct dev_ops	ata_ops = {
 	DEVO_REV,		/* devo_rev, */
 	0,			/* refcnt  */
 	ddi_getinfo_1to1,	/* info */
 	nulldev,		/* identify */
-	nulldev,		/* probe */
-	sol11ata_attach,		/* attach */
-	sol11ata_detach,		/* detach */
-	sol11ata_devo_reset,		/* reset */
-	&sol11ata_cb_ops,		/* driver operations */
+	ata_probe,		/* probe */
+	ata_attach,		/* attach */
+	ata_detach,		/* detach */
+	ata_devo_reset,		/* reset */
+	&ata_cb_ops,		/* driver operations */
 	NULL			/* bus operations */
 };
 
@@ -308,7 +308,7 @@ static struct dev_ops	sol11ata_ops = {
 static struct modldrv modldrv = {
 	&mod_driverops,		/* Type of module. This one is a driver */
 	"Solaris 11 ATA AT-bus attachment disk controller Driver",	/* module name */
-	&sol11ata_ops,					/* driver ops */
+	&ata_ops,					/* driver ops */
 };
 
 static struct modlinkage modlinkage = {
@@ -316,9 +316,9 @@ static struct modlinkage modlinkage = {
 };
 
 #ifdef ATA_DEBUG
-int	sol11ata_debug_init = FALSE;
-int	sol11ata_debug_probe = FALSE;
-int	sol11ata_debug_attach = FALSE;
+int	ata_debug_init = FALSE;
+int	ata_debug_probe = FALSE;
+int	ata_debug_attach = FALSE;
 
 int	sol11ata_debug = ADBG_FLAG_ERROR
 		/* | ADBG_FLAG_ARQ */
@@ -335,45 +335,44 @@ _init(void)
 	int err;
 
 #ifdef ATA_DEBUG
-	if (sol11ata_debug_init)
+	if (ata_debug_init)
 		debug_enter("\nATA _INIT\n");
 #endif
 
-	if ((err = ddi_soft_state_init(&sol11ata_state, sizeof (sol11ata_ctl_t), 0)) != 0)
+	if ((err = ddi_soft_state_init(&ata_state, sizeof (ata_ctl_t), 0)) != 0)
 		return (err);
 
 	if ((err = scsi_hba_init(&modlinkage)) != 0) {
-		ddi_soft_state_fini(&sol11ata_state);
+		ddi_soft_state_fini(&ata_state);
 		return (err);
 	}
 
 	/* save pointer to SCSA provided bus_ops struct */
-	scsa_bus_ops_p = sol11ata_ops.devo_bus_ops;
+	scsa_bus_ops_p = ata_ops.devo_bus_ops;
 
 	/* make a copy of SCSA bus_ops */
-	sol11ata_bus_ops = *(sol11ata_ops.devo_bus_ops);
+	ata_bus_ops = *(ata_ops.devo_bus_ops);
 
 	/*
 	 * Modify our bus_ops to call our routines.  Our implementation
 	 * will determine if the device is ATA or ATAPI/SCSA and react
 	 * accordingly.
 	 */
-	sol11ata_bus_ops.bus_ctl = sol11ata_bus_ctl;
+	ata_bus_ops.bus_ctl = ata_bus_ctl;
 
 	/* patch our bus_ops into the dev_ops struct */
-	sol11ata_ops.devo_bus_ops = &sol11ata_bus_ops;
+	ata_ops.devo_bus_ops = &ata_bus_ops;
 
 	if ((err = mod_install(&modlinkage)) != 0) {
 		scsi_hba_fini(&modlinkage);
-		ddi_soft_state_fini(&sol11ata_state);
+		ddi_soft_state_fini(&ata_state);
 	}
-	ADBG_TRACE(("Added bus_ctl %p\n", sol11ata_bus_ctl));
 
 	/*
 	 * Initialize the per driver timer info.
 	 */
 
-	sol11ghd_timer_init(&sol11ata_timer_conf, drv_usectohz(sol11ata_watchdog_usec));
+	ghd_timer_init(&ata_timer_conf, drv_usectohz(ata_watchdog_usec));
 
 	return (err);
 }
@@ -384,9 +383,9 @@ _fini(void)
 	int err;
 
 	if ((err = mod_remove(&modlinkage)) == 0) {
-		sol11ghd_timer_fini(&sol11ata_timer_conf);
+		ghd_timer_fini(&ata_timer_conf);
 		scsi_hba_fini(&modlinkage);
-		ddi_soft_state_fini(&sol11ata_state);
+		ddi_soft_state_fini(&ata_state);
 	}
 
 	return (err);
@@ -402,7 +401,7 @@ _info(struct modinfo *modinfop)
 /* driver probe entry point */
 
 static int
-sol11ata_probe(
+ata_probe(
 	dev_info_t *dip)
 {
 	ddi_acc_handle_t io_hdl1 = NULL;
@@ -412,20 +411,20 @@ sol11ata_probe(
 	caddr_t		 ioaddr2;
 	caddr_t		 bm_addr;
 	int		 drive;
-	struct sol11ata_id	*sol11ata_id_bufp;
+	struct ata_id	*ata_id_bufp;
 	int		 rc = DDI_PROBE_FAILURE;
 
-	ADBG_TRACE(("sol11ata_probe entered\n"));
+	ADBG_TRACE(("ata_probe entered\n"));
 #ifdef ATA_DEBUG
-	if (sol11ata_debug_probe)
+	if (ata_debug_probe)
 		debug_enter("\nATA_PROBE\n");
 #endif
 
-	if (!sol11ata_setup_ioaddr(dip, &io_hdl1, &ioaddr1, &io_hdl2, &ioaddr2,
+	if (!ata_setup_ioaddr(dip, &io_hdl1, &ioaddr1, &io_hdl2, &ioaddr2,
 			&bm_hdl, &bm_addr))
 		return (rc);
 
-	sol11ata_id_bufp = kmem_zalloc(sizeof (*sol11ata_id_bufp), KM_SLEEP);
+	ata_id_bufp = kmem_zalloc(sizeof (*ata_id_bufp), KM_SLEEP);
 
 	for (drive = 0; drive < ATA_MAXTARG; drive++) {
 		uchar_t	drvhd;
@@ -435,8 +434,8 @@ sol11ata_probe(
 		drvhd = (drive == 0 ? ATDH_DRIVE0 : ATDH_DRIVE1);
 
 
-		if (sol11ata_drive_type(drvhd, io_hdl1, ioaddr1, io_hdl2, ioaddr2,
-		    sol11ata_id_bufp) != ATA_DEV_NONE) {
+		if (ata_drive_type(drvhd, io_hdl1, ioaddr1, io_hdl2, ioaddr2,
+		    ata_id_bufp) != ATA_DEV_NONE) {
 			rc = (DDI_PROBE_SUCCESS);
 			break;
 		}
@@ -449,7 +448,7 @@ sol11ata_probe(
 	}
 
 out2:
-	kmem_free(sol11ata_id_bufp, sizeof (*sol11ata_id_bufp));
+	kmem_free(ata_id_bufp, sizeof (*ata_id_bufp));
 
 	if (io_hdl1)
 		ddi_regs_map_free(&io_hdl1);
@@ -467,29 +466,22 @@ out2:
  */
 
 static int
-sol11ata_attach(
+ata_attach(
 	dev_info_t *dip,
 	ddi_attach_cmd_t cmd)
 {
-	sol11ata_ctl_t	*sol11ata_ctlp;
-	sol11ata_drv_t	*sol11ata_drvp;
-	sol11ata_drv_t	*first_drvp = NULL;
+	ata_ctl_t	*ata_ctlp;
+	ata_drv_t	*ata_drvp;
+	ata_drv_t	*first_drvp = NULL;
 	uchar_t		 targ;
 	uchar_t		 lun;
 	uchar_t		 lastlun;
-	int		 sol11atapi_count = 0;
+	int		 atapi_count = 0;
 	int		 disk_count = 0;
 
-	ADBG_TRACE(("sol11ata_attach entered\n"));
-	//cmn_err(CE_NOTE, "sol11ata_attach entered %i\n", sol11ata_debug);
-	#ifdef ATA_DEBUG
-	cmn_err(CE_NOTE, "ATA_DEBUG enabled\n");
-	cmn_err(CE_NOTE, "bus_ctl is %p\n", ((struct dev_info *)(dip))->devi_ops->devo_bus_ops->bus_ctl);
-	cmn_err(CE_NOTE, "devi_bus_ctl is %p\n", (dev_info_t *)DEVI(dip)->devi_bus_ctl);
-	cmn_err(CE_NOTE, "adjusted devi_bus_ctl is %p\n", ((struct dev_info *)((dev_info_t *)DEVI(dip)->devi_bus_ctl))->devi_ops->devo_bus_ops->bus_ctl);
-	#endif
+	ADBG_TRACE(("ata_attach entered\n"));
 #ifdef ATA_DEBUG
-	if (sol11ata_debug_attach)
+	if (ata_debug_attach)
 		debug_enter("\nATA_ATTACH\n\n");
 #endif
 
@@ -500,33 +492,30 @@ sol11ata_attach(
 				    DDI_PROP_DONTPASS, "vendor-id", 0);
 	int device_id = ddi_prop_get_int(DDI_DEV_T_ANY, dip,
 				    DDI_PROP_DONTPASS, "device-id", 0);
-	cmn_err(CE_NOTE, "sol11ata_attach Attaching to vendor-id: %x device-id: %x\n", vendor_id, device_id);
+	cmn_err(CE_NOTE, "ata_attach Attaching to vendor-id: %x device-id: %x\n", vendor_id, device_id);
 
 	/* initialize controller */
-	ADBG_TRACE(("sol11ata_attach initializing controller"));
-	sol11ata_ctlp = sol11ata_init_controller(dip);
+	ata_ctlp = ata_init_controller(dip);
 
-	if (sol11ata_ctlp == NULL)
+	if (ata_ctlp == NULL)
 		goto errout;
 
-	ADBG_TRACE(("sol11ata_attach initialized controller"));
-
-	mutex_enter(&sol11ata_ctlp->ac_ccc.ccc_hba_mutex);
+	mutex_enter(&ata_ctlp->ac_ccc.ccc_hba_mutex);
 
 	/* initialize drives */
 
 	for (targ = 0; targ < ATA_MAXTARG; targ++) {
 
-		sol11ata_drvp = sol11ata_init_drive(sol11ata_ctlp, targ, 0);
-		if (sol11ata_drvp == NULL)
+		ata_drvp = ata_init_drive(ata_ctlp, targ, 0);
+		if (ata_drvp == NULL)
 			continue;
 
 		if (first_drvp == NULL)
-			first_drvp = sol11ata_drvp;
+			first_drvp = ata_drvp;
 
-		if (ATAPIDRV(sol11ata_drvp)) {
-			sol11atapi_count++;
-			lastlun = sol11ata_drvp->ad_id.ai_lastlun;
+		if (ATAPIDRV(ata_drvp)) {
+			atapi_count++;
+			lastlun = ata_drvp->ad_id.ai_lastlun;
 		} else {
 			disk_count++;
 			lastlun = 0;
@@ -536,20 +525,20 @@ sol11ata_attach(
 		 * LUN support is currently disabled. Check with SFF-8070i
 		 * before enabling.
 		 */
-		if (!sol11ata_enable_sol11atapi_luns)
+		if (!ata_enable_atapi_luns)
 			lastlun = 0;
 
 		/* Initialize higher LUNs, if there are any */
 		for (lun = 1; lun <= lastlun && lun < ATA_MAXLUN; lun++) {
-			if ((sol11ata_drvp =
-			    sol11ata_init_drive(sol11ata_ctlp, targ, lun)) != NULL) {
-				sol11ata_show_transfer_mode(sol11ata_ctlp, sol11ata_drvp);
+			if ((ata_drvp =
+			    ata_init_drive(ata_ctlp, targ, lun)) != NULL) {
+				ata_show_transfer_mode(ata_ctlp, ata_drvp);
 			}
 		}
 	}
 
-	if ((sol11atapi_count == 0) && (disk_count == 0)) {
-		ADBG_WARN(("sol11ata_attach: no drives detected\n"));
+	if ((atapi_count == 0) && (disk_count == 0)) {
+		ADBG_WARN(("ata_attach: no drives detected\n"));
 		goto errout1;
 	}
 
@@ -558,39 +547,39 @@ sol11ata_attach(
 	 * that routines which poll the status register don't get
 	 * confused by non-existent drives.
 	 */
-	ddi_put8(sol11ata_ctlp->ac_iohandle1, sol11ata_ctlp->ac_drvhd,
+	ddi_put8(ata_ctlp->ac_iohandle1, ata_ctlp->ac_drvhd,
 		first_drvp->ad_drive_bits);
-	ATA_DELAY_400NSEC(sol11ata_ctlp->ac_iohandle2, sol11ata_ctlp->ac_ioaddr2);
+	ATA_DELAY_400NSEC(ata_ctlp->ac_iohandle2, ata_ctlp->ac_ioaddr2);
 
 	/*
 	 * make certain the drive selected
 	 */
-	if (!sol11ata_wait(sol11ata_ctlp->ac_iohandle2, sol11ata_ctlp->ac_ioaddr2,
+	if (!sol11ata_wait(ata_ctlp->ac_iohandle2, ata_ctlp->ac_ioaddr2,
 			0, ATS_BSY, 5000000)) {
-		ADBG_ERROR(("sol11ata_attach: select failed\n"));
+		ADBG_ERROR(("ata_attach: select failed\n"));
 	}
 
 	/*
-	 * initialize sol11atapi/sol11ata_dsk modules if we have at least
+	 * initialize atapi/ata_dsk modules if we have at least
 	 * one drive of that type.
 	 */
 
-	if (sol11atapi_count) {
-		if (!sol11atapi_attach(sol11ata_ctlp))
+	if (atapi_count) {
+		if (!atapi_attach(ata_ctlp))
 			goto errout1;
-		sol11ata_ctlp->ac_flags |= AC_ATAPI_INIT;
+		ata_ctlp->ac_flags |= AC_ATAPI_INIT;
 	}
 
 	if (disk_count) {
-		if (!sol11ata_disk_attach(sol11ata_ctlp))
+		if (!ata_disk_attach(ata_ctlp))
 			goto errout1;
-		sol11ata_ctlp->ac_flags |= AC_DISK_INIT;
+		ata_ctlp->ac_flags |= AC_DISK_INIT;
 	}
 
 	/*
 	 * make certain the interrupt and error latches are clear
 	 */
-	if (sol11ata_ctlp->ac_pciide) {
+	if (ata_ctlp->ac_pciide) {
 
 		int instance = ddi_get_instance(dip);
 		if (ddi_create_minor_node(dip, "control", S_IFCHR, instance,
@@ -598,82 +587,82 @@ sol11ata_attach(
 			goto errout1;
 		}
 
-		(void) sol11ata_pciide_status_clear(sol11ata_ctlp);
+		(void) ata_pciide_status_clear(ata_ctlp);
 
 	}
 
 	/*
 	 * enable the interrupt handler and drop the mutex
 	 */
-	sol11ata_ctlp->ac_flags |= AC_ATTACHED;
-	mutex_exit(&sol11ata_ctlp->ac_ccc.ccc_hba_mutex);
+	ata_ctlp->ac_flags |= AC_ATTACHED;
+	mutex_exit(&ata_ctlp->ac_ccc.ccc_hba_mutex);
 
 	ddi_report_dev(dip);
 	return (DDI_SUCCESS);
 
 errout1:
-	mutex_exit(&sol11ata_ctlp->ac_ccc.ccc_hba_mutex);
+	mutex_exit(&ata_ctlp->ac_ccc.ccc_hba_mutex);
 errout:
-	(void) sol11ata_detach(dip, DDI_DETACH);
+	(void) ata_detach(dip, DDI_DETACH);
 	return (DDI_FAILURE);
 }
 
 /* driver detach entry point */
 
 static int
-sol11ata_detach(
+ata_detach(
 	dev_info_t *dip,
 	ddi_detach_cmd_t cmd)
 {
-	sol11ata_ctl_t *sol11ata_ctlp;
-	sol11ata_drv_t *sol11ata_drvp;
+	ata_ctl_t *ata_ctlp;
+	ata_drv_t *ata_drvp;
 	int	   instance;
 	int	   i;
 	int	   j;
 
-	ADBG_TRACE(("sol11ata_detach entered\n"));
+	ADBG_TRACE(("ata_detach entered\n"));
 
 	if (cmd != DDI_DETACH)
 		return (DDI_FAILURE);
 
 	instance = ddi_get_instance(dip);
-	sol11ata_ctlp = ddi_get_soft_state(sol11ata_state, instance);
+	ata_ctlp = ddi_get_soft_state(ata_state, instance);
 
-	if (!sol11ata_ctlp)
+	if (!ata_ctlp)
 		return (DDI_SUCCESS);
 
-	sol11ata_ctlp->ac_flags &= ~AC_ATTACHED;
+	ata_ctlp->ac_flags &= ~AC_ATTACHED;
 
-	/* destroy sol11ata module */
-	if (sol11ata_ctlp->ac_flags & AC_DISK_INIT)
-		sol11ata_disk_detach(sol11ata_ctlp);
+	/* destroy ata module */
+	if (ata_ctlp->ac_flags & AC_DISK_INIT)
+		ata_disk_detach(ata_ctlp);
 
-	/* destroy sol11atapi module */
-	if (sol11ata_ctlp->ac_flags & AC_ATAPI_INIT)
-		sol11atapi_detach(sol11ata_ctlp);
+	/* destroy atapi module */
+	if (ata_ctlp->ac_flags & AC_ATAPI_INIT)
+		atapi_detach(ata_ctlp);
 
 	ddi_remove_minor_node(dip, NULL);
 
 	/* destroy drives */
 	for (i = 0; i < ATA_MAXTARG; i++) {
 		for (j = 0; j < ATA_MAXLUN; j++) {
-			sol11ata_drvp = CTL2DRV(sol11ata_ctlp, i, j);
-			if (sol11ata_drvp != NULL)
-				sol11ata_uninit_drive(sol11ata_drvp);
+			ata_drvp = CTL2DRV(ata_ctlp, i, j);
+			if (ata_drvp != NULL)
+				ata_uninit_drive(ata_drvp);
 		}
 	}
 
-	if (sol11ata_ctlp->ac_iohandle1)
-		ddi_regs_map_free(&sol11ata_ctlp->ac_iohandle1);
-	if (sol11ata_ctlp->ac_iohandle2)
-		ddi_regs_map_free(&sol11ata_ctlp->ac_iohandle2);
-	if (sol11ata_ctlp->ac_bmhandle)
-		ddi_regs_map_free(&sol11ata_ctlp->ac_bmhandle);
+	if (ata_ctlp->ac_iohandle1)
+		ddi_regs_map_free(&ata_ctlp->ac_iohandle1);
+	if (ata_ctlp->ac_iohandle2)
+		ddi_regs_map_free(&ata_ctlp->ac_iohandle2);
+	if (ata_ctlp->ac_bmhandle)
+		ddi_regs_map_free(&ata_ctlp->ac_bmhandle);
 
 	ddi_prop_remove_all(dip);
 
 	/* destroy controller */
-	sol11ata_destroy_controller(dip);
+	ata_destroy_controller(dip);
 
 	return (DDI_SUCCESS);
 }
@@ -683,7 +672,7 @@ sol11ata_detach(
  */
 /*ARGSUSED*/
 static int
-sol11ata_bus_ctl(
+ata_bus_ctl(
 	dev_info_t *d,
 	dev_info_t *r,
 	ddi_ctl_enum_t o,
@@ -695,7 +684,7 @@ sol11ata_bus_ctl(
 	int	rc;
 	char	*bufp;
 
-	ADBG_TRACE(("sol11ata_bus_ctl entered\n"));
+	ADBG_TRACE(("ata_bus_ctl entered\n"));
 
 	switch (o) {
 
@@ -723,7 +712,7 @@ sol11ata_bus_ctl(
 	case DDI_CTLOPS_PEEK:
 
 		/* These ops shouldn't be called by a target driver */
-		ADBG_ERROR(("sol11ata_bus_ctl: %s%d: invalid op (%d) from %s%d\n",
+		ADBG_ERROR(("ata_bus_ctl: %s%d: invalid op (%d) from %s%d\n",
 			ddi_driver_name(d), ddi_get_instance(d), o,
 			ddi_driver_name(r), ddi_get_instance(r)));
 
@@ -760,12 +749,12 @@ sol11ata_bus_ctl(
 	    "class", &bufp) == DDI_PROP_SUCCESS) ||
 	    (ddi_prop_lookup_string(DDI_DEV_T_ANY, tdip, DDI_PROP_DONTPASS,
 	    "class_prop", &bufp) == DDI_PROP_SUCCESS)) {
-		if (strcmp(bufp, "dadk") == 0)
+		if (strcmp(bufp, "sol11dadk") == 0)
 			target_type = ATA_DEV_DISK;
 		else if (strcmp(bufp, "scsi") == 0)
 			target_type = ATA_DEV_ATAPI;
 		else {
-			ADBG_WARN(("sol11ata_bus_ctl: invalid target class %s\n",
+			ADBG_WARN(("ata_bus_ctl: invalid target class %s\n",
 				bufp));
 			ddi_prop_free(bufp);
 			return (DDI_FAILURE);
@@ -777,16 +766,16 @@ sol11ata_bus_ctl(
 
 	if (o == DDI_CTLOPS_INITCHILD) {
 		int	instance = ddi_get_instance(d);
-		sol11ata_ctl_t *sol11ata_ctlp = ddi_get_soft_state(sol11ata_state, instance);
-		sol11ata_drv_t *sol11ata_drvp;
+		ata_ctl_t *ata_ctlp = ddi_get_soft_state(ata_state, instance);
+		ata_drv_t *ata_drvp;
 		int	targ;
 		int	lun;
 		int	drive_type;
 		char	*disk_prop;
 		char	*class_prop;
 
-		if (sol11ata_ctlp == NULL) {
-			ADBG_WARN(("sol11ata_bus_ctl: failed to find ctl struct\n"));
+		if (ata_ctlp == NULL) {
+			ADBG_WARN(("ata_bus_ctl: failed to find ctl struct\n"));
 			return (DDI_FAILURE);
 		}
 
@@ -795,7 +784,7 @@ sol11ata_bus_ctl(
 		targ = ddi_prop_get_int(DDI_DEV_T_ANY, tdip, DDI_PROP_DONTPASS,
 					"target", -1);
 		if (targ == -1) {
-			ADBG_WARN(("sol11ata_bus_ctl: failed to get targ num\n"));
+			ADBG_WARN(("ata_bus_ctl: failed to get targ num\n"));
 			return (DDI_FAILURE);
 		}
 
@@ -807,14 +796,14 @@ sol11ata_bus_ctl(
 			return (DDI_FAILURE);
 		}
 
-		sol11ata_drvp = CTL2DRV(sol11ata_ctlp, targ, lun);
+		ata_drvp = CTL2DRV(ata_ctlp, targ, lun);
 
-		if (sol11ata_drvp == NULL)
+		if (ata_drvp == NULL)
 			return (DDI_FAILURE);	/* no drive */
 
 		/* get type of device */
 
-		if (ATAPIDRV(sol11ata_drvp))
+		if (ATAPIDRV(ata_drvp))
 			drive_type = ATA_DEV_ATAPI;
 		else
 			drive_type = ATA_DEV_DISK;
@@ -839,7 +828,7 @@ sol11ata_bus_ctl(
 
 				if (ndi_prop_update_string(DDI_DEV_T_NONE, tdip,
 				    "disk", disk_prop) != DDI_PROP_SUCCESS) {
-					ADBG_WARN(("sol11ata_bus_ctl: failed to "
+					ADBG_WARN(("ata_bus_ctl: failed to "
 						"create disk prop\n"));
 					return (DDI_FAILURE);
 				    }
@@ -847,7 +836,7 @@ sol11ata_bus_ctl(
 
 			if (ndi_prop_update_string(DDI_DEV_T_NONE, tdip,
 			    "class_prop", class_prop) != DDI_PROP_SUCCESS) {
-				ADBG_WARN(("sol11ata_bus_ctl: failed to "
+				ADBG_WARN(("ata_bus_ctl: failed to "
 				    "create class prop\n"));
 				return (DDI_FAILURE);
 			}
@@ -859,7 +848,7 @@ sol11ata_bus_ctl(
 			return (DDI_FAILURE);
 
 		/* save pointer to drive struct for sol11ata_disk_bus_ctl */
-		ddi_set_driver_private(tdip, sol11ata_drvp);
+		ddi_set_driver_private(tdip, ata_drvp);
 
 		/*
 		 * Determine whether to enable DMA support for this drive.  This
@@ -867,9 +856,9 @@ sol11ata_bus_ctl(
 		 * properties could reside on the devinfo node should finer
 		 * grained dma control be required.
 		 */
-		sol11ata_drvp->ad_pciide_dma = sol11ata_init_drive_pcidma(sol11ata_ctlp,
-		    sol11ata_drvp, tdip);
-		sol11ata_show_transfer_mode(sol11ata_ctlp, sol11ata_drvp);
+		ata_drvp->ad_pciide_dma = ata_init_drive_pcidma(ata_ctlp,
+		    ata_drvp, tdip);
+		ata_show_transfer_mode(ata_ctlp, ata_drvp);
 	}
 
 	if (target_type == ATA_DEV_ATAPI) {
@@ -889,20 +878,20 @@ sol11ata_bus_ctl(
 
 /* ARGSUSED */
 static void
-sol11ata_hba_complete(
+ata_hba_complete(
 	void *hba_handle,
 	gcmd_t *gcmdp,
 	int do_callback)
 {
-	sol11ata_drv_t *sol11ata_drvp;
-	sol11ata_pkt_t *sol11ata_pktp;
+	ata_drv_t *ata_drvp;
+	ata_pkt_t *ata_pktp;
 
-	ADBG_TRACE(("sol11ata_hba_complete entered\n"));
+	ADBG_TRACE(("ata_hba_complete entered\n"));
 
-	sol11ata_drvp = GCMD2DRV(gcmdp);
-	sol11ata_pktp = GCMD2APKT(gcmdp);
-	if (sol11ata_pktp->ap_complete)
-		(*sol11ata_pktp->ap_complete)(sol11ata_drvp, sol11ata_pktp,
+	ata_drvp = GCMD2DRV(gcmdp);
+	ata_pktp = GCMD2APKT(gcmdp);
+	if (ata_pktp->ap_complete)
+		(*ata_pktp->ap_complete)(ata_drvp, ata_pktp,
 			do_callback);
 }
 
@@ -910,40 +899,40 @@ sol11ata_hba_complete(
 
 /* ARGSUSED */
 static int
-sol11ata_timeout_func(
+ata_timeout_func(
 	void	*hba_handle,
 	gcmd_t	*gcmdp,
 	gtgt_t	*gtgtp,
 	gact_t	 action,
 	int	 calltype)
 {
-	sol11ata_ctl_t *sol11ata_ctlp;
-	sol11ata_pkt_t *sol11ata_pktp;
+	ata_ctl_t *ata_ctlp;
+	ata_pkt_t *ata_pktp;
 
-	ADBG_TRACE(("sol11ata_timeout_func entered\n"));
+	ADBG_TRACE(("ata_timeout_func entered\n"));
 
-	sol11ata_ctlp = (sol11ata_ctl_t *)hba_handle;
+	ata_ctlp = (ata_ctl_t *)hba_handle;
 
 	if (gcmdp != NULL)
-		sol11ata_pktp = GCMD2APKT(gcmdp);
+		ata_pktp = GCMD2APKT(gcmdp);
 	else
-		sol11ata_pktp = NULL;
+		ata_pktp = NULL;
 
 	switch (action) {
 	case GACTION_EARLY_ABORT:
 		/* abort before request was started */
-		if (sol11ata_pktp != NULL) {
-			sol11ata_pktp->ap_flags |= AP_ABORT;
+		if (ata_pktp != NULL) {
+			ata_pktp->ap_flags |= AP_ABORT;
 		}
-		sol11ghd_complete(&sol11ata_ctlp->ac_ccc, gcmdp);
+		ghd_complete(&ata_ctlp->ac_ccc, gcmdp);
 		return (TRUE);
 
 	case GACTION_EARLY_TIMEOUT:
 		/* timeout before request was started */
-		if (sol11ata_pktp != NULL) {
-			sol11ata_pktp->ap_flags |= AP_TIMEOUT;
+		if (ata_pktp != NULL) {
+			ata_pktp->ap_flags |= AP_TIMEOUT;
 		}
-		sol11ghd_complete(&sol11ata_ctlp->ac_ccc, gcmdp);
+		ghd_complete(&ata_ctlp->ac_ccc, gcmdp);
 		return (TRUE);
 
 	case GACTION_RESET_TARGET:
@@ -966,7 +955,7 @@ sol11ata_timeout_func(
 		 */
 		if (gcmdp == NULL)
 			break;
-		return (sol11ata_reset_bus(sol11ata_ctlp));
+		return (ata_reset_bus(ata_ctlp));
 	default:
 		break;
 	}
@@ -979,29 +968,29 @@ sol11ata_timeout_func(
  *
  */
 
-static sol11ata_ctl_t *
-sol11ata_init_controller(
+static ata_ctl_t *
+ata_init_controller(
 	dev_info_t *dip)
 {
-	sol11ata_ctl_t *sol11ata_ctlp;
+	ata_ctl_t *ata_ctlp;
 	int	   instance;
 	caddr_t	   ioaddr1;
 	caddr_t	   ioaddr2;
 
-	ADBG_TRACE(("sol11ata_init_controller entered\n"));
+	ADBG_TRACE(("ata_init_controller entered\n"));
 
 	instance = ddi_get_instance(dip);
 
 	/* allocate controller structure */
-	if (ddi_soft_state_zalloc(sol11ata_state, instance) != DDI_SUCCESS) {
-		ADBG_WARN(("sol11ata_init_controller: soft_state_zalloc failed\n"));
+	if (ddi_soft_state_zalloc(ata_state, instance) != DDI_SUCCESS) {
+		ADBG_WARN(("ata_init_controller: soft_state_zalloc failed\n"));
 		return (NULL);
 	}
 
-	sol11ata_ctlp = ddi_get_soft_state(sol11ata_state, instance);
+	ata_ctlp = ddi_get_soft_state(ata_state, instance);
 
-	if (sol11ata_ctlp == NULL) {
-		ADBG_WARN(("sol11ata_init_controller: failed to find "
+	if (ata_ctlp == NULL) {
+		ADBG_WARN(("ata_init_controller: failed to find "
 				"controller struct\n"));
 		return (NULL);
 	}
@@ -1009,149 +998,149 @@ sol11ata_init_controller(
 	/*
 	 * initialize per-controller data
 	 */
-	sol11ata_ctlp->ac_dip = dip;
-	sol11ata_ctlp->ac_arq_pktp = kmem_zalloc(sizeof (sol11ata_pkt_t), KM_SLEEP);
+	ata_ctlp->ac_dip = dip;
+	ata_ctlp->ac_arq_pktp = kmem_zalloc(sizeof (ata_pkt_t), KM_SLEEP);
 
 	/*
 	 * map the device registers
 	 */
-	if (!sol11ata_setup_ioaddr(dip, &sol11ata_ctlp->ac_iohandle1, &ioaddr1,
-			&sol11ata_ctlp->ac_iohandle2, &ioaddr2,
-			&sol11ata_ctlp->ac_bmhandle, &sol11ata_ctlp->ac_bmaddr)) {
-		(void) sol11ata_detach(dip, DDI_DETACH);
+	if (!ata_setup_ioaddr(dip, &ata_ctlp->ac_iohandle1, &ioaddr1,
+			&ata_ctlp->ac_iohandle2, &ioaddr2,
+			&ata_ctlp->ac_bmhandle, &ata_ctlp->ac_bmaddr)) {
+		(void) ata_detach(dip, DDI_DETACH);
 		return (NULL);
 	}
 
-	ADBG_INIT(("sol11ata_init_controller: ioaddr1 = 0x%p, ioaddr2 = 0x%p\n",
+	ADBG_INIT(("ata_init_controller: ioaddr1 = 0x%p, ioaddr2 = 0x%p\n",
 			ioaddr1, ioaddr2));
 
 	/*
 	 * Do ARQ setup
 	 */
-	sol11atapi_init_arq(sol11ata_ctlp);
+	atapi_init_arq(ata_ctlp);
 
 	/*
 	 * Do PCI-IDE setup
 	 */
-	sol11ata_init_pciide(dip, sol11ata_ctlp);
+	ata_init_pciide(dip, ata_ctlp);
 
 	/*
 	 * port addresses associated with ioaddr1
 	 */
-	sol11ata_ctlp->ac_ioaddr1	= ioaddr1;
-	sol11ata_ctlp->ac_data	= (ushort_t *)ioaddr1 + AT_DATA;
-	sol11ata_ctlp->ac_error	= (uchar_t *)ioaddr1 + AT_ERROR;
-	sol11ata_ctlp->ac_feature	= (uchar_t *)ioaddr1 + AT_FEATURE;
-	sol11ata_ctlp->ac_count	= (uchar_t *)ioaddr1 + AT_COUNT;
-	sol11ata_ctlp->ac_sect	= (uchar_t *)ioaddr1 + AT_SECT;
-	sol11ata_ctlp->ac_lcyl	= (uchar_t *)ioaddr1 + AT_LCYL;
-	sol11ata_ctlp->ac_hcyl	= (uchar_t *)ioaddr1 + AT_HCYL;
-	sol11ata_ctlp->ac_drvhd	= (uchar_t *)ioaddr1 + AT_DRVHD;
-	sol11ata_ctlp->ac_status	= (uchar_t *)ioaddr1 + AT_STATUS;
-	sol11ata_ctlp->ac_cmd	= (uchar_t *)ioaddr1 + AT_CMD;
+	ata_ctlp->ac_ioaddr1	= ioaddr1;
+	ata_ctlp->ac_data	= (ushort_t *)ioaddr1 + AT_DATA;
+	ata_ctlp->ac_error	= (uchar_t *)ioaddr1 + AT_ERROR;
+	ata_ctlp->ac_feature	= (uchar_t *)ioaddr1 + AT_FEATURE;
+	ata_ctlp->ac_count	= (uchar_t *)ioaddr1 + AT_COUNT;
+	ata_ctlp->ac_sect	= (uchar_t *)ioaddr1 + AT_SECT;
+	ata_ctlp->ac_lcyl	= (uchar_t *)ioaddr1 + AT_LCYL;
+	ata_ctlp->ac_hcyl	= (uchar_t *)ioaddr1 + AT_HCYL;
+	ata_ctlp->ac_drvhd	= (uchar_t *)ioaddr1 + AT_DRVHD;
+	ata_ctlp->ac_status	= (uchar_t *)ioaddr1 + AT_STATUS;
+	ata_ctlp->ac_cmd	= (uchar_t *)ioaddr1 + AT_CMD;
 
 	/*
 	 * port addresses associated with ioaddr2
 	 */
-	sol11ata_ctlp->ac_ioaddr2	= ioaddr2;
-	sol11ata_ctlp->ac_altstatus	= (uchar_t *)ioaddr2 + AT_ALTSTATUS;
-	sol11ata_ctlp->ac_devctl	= (uchar_t *)ioaddr2 + AT_DEVCTL;
+	ata_ctlp->ac_ioaddr2	= ioaddr2;
+	ata_ctlp->ac_altstatus	= (uchar_t *)ioaddr2 + AT_ALTSTATUS;
+	ata_ctlp->ac_devctl	= (uchar_t *)ioaddr2 + AT_DEVCTL;
 
 	/*
 	 * If AC_BSY_WAIT needs to be set  for laptops that do
 	 * suspend/resume but do not correctly wait for the busy bit to
 	 * drop after a resume.
 	 */
-	sol11ata_ctlp->ac_timing_flags = ddi_prop_get_int(DDI_DEV_T_ANY,
+	ata_ctlp->ac_timing_flags = ddi_prop_get_int(DDI_DEV_T_ANY,
 			dip, DDI_PROP_DONTPASS, "timing_flags", 0);
 	/*
 	 * get max transfer size, default to 256 sectors
 	 */
-	sol11ata_ctlp->ac_max_transfer = ddi_prop_get_int(DDI_DEV_T_ANY,
+	ata_ctlp->ac_max_transfer = ddi_prop_get_int(DDI_DEV_T_ANY,
 			dip, DDI_PROP_DONTPASS, "max_transfer", 0x100);
-	if (sol11ata_ctlp->ac_max_transfer < 1)
-		sol11ata_ctlp->ac_max_transfer = 1;
-	if (sol11ata_ctlp->ac_max_transfer > 0x100)
-		sol11ata_ctlp->ac_max_transfer = 0x100;
+	if (ata_ctlp->ac_max_transfer < 1)
+		ata_ctlp->ac_max_transfer = 1;
+	if (ata_ctlp->ac_max_transfer > 0x100)
+		ata_ctlp->ac_max_transfer = 0x100;
 
 	/*
 	 * Get the standby timer value
 	 */
-	sol11ata_ctlp->ac_standby_time = ddi_prop_get_int(DDI_DEV_T_ANY,
+	ata_ctlp->ac_standby_time = ddi_prop_get_int(DDI_DEV_T_ANY,
 			dip, DDI_PROP_DONTPASS, "standby", -1);
 
 	/*
 	 * If this is a /pci/pci-ide instance check to see if
-	 * it's supposed to be attached as an /isa/sol11ata
+	 * it's supposed to be attached as an /isa/ata
 	 */
-	if (sol11ata_ctlp->ac_pciide) {
-		static char prop_buf[] = "SUNW-sol11ata-ffff-isa";
+	if (ata_ctlp->ac_pciide) {
+		static char prop_buf[] = "SUNW-ata-ffff-isa";
 		int addr1 = (intptr_t)ioaddr1;
 
 
 		if (addr1 < 0 || addr1 > 0xffff) {
-			(void) sol11ata_detach(dip, DDI_DETACH);
+			(void) ata_detach(dip, DDI_DETACH);
 			return (NULL);
 		}
-		(void) sprintf(prop_buf, "SUNW-sol11ata-%04x-isa",
+		(void) sprintf(prop_buf, "SUNW-ata-%04x-isa",
 			addr1);
 		if (ddi_prop_exists(DDI_DEV_T_ANY, ddi_root_node(),
 				    DDI_PROP_DONTPASS, prop_buf)) {
-			(void) sol11ata_detach(dip, DDI_DETACH);
+			(void) ata_detach(dip, DDI_DETACH);
 			return (NULL);
 		}
 	}
 
 	/* Init controller specific stuff */
-	(void) sol11ata_spec_init_controller(dip);
+	(void) ata_spec_init_controller(dip);
 
 	/*
 	 * initialize GHD
 	 */
 
-	GHD_WAITQ_INIT(&sol11ata_ctlp->ac_ccc.ccc_waitq, NULL, 1);
+	GHD_WAITQ_INIT(&ata_ctlp->ac_ccc.ccc_waitq, NULL, 1);
 
-	if (!sol11ghd_register("sol11ata", &sol11ata_ctlp->ac_ccc, dip, 0, sol11ata_ctlp,
-			sol11atapi_ccballoc, sol11atapi_ccbfree,
-			sol11ata_pciide_dma_sg_func, sol11ata_hba_start,
-			sol11ata_hba_complete, sol11ata_intr,
-			sol11ata_get_status, sol11ata_process_intr, sol11ata_timeout_func,
-			&sol11ata_timer_conf, NULL)) {
-		(void) sol11ata_detach(dip, DDI_DETACH);
+	if (!ghd_register("sol11ata", &ata_ctlp->ac_ccc, dip, 0, ata_ctlp,
+			atapi_ccballoc, atapi_ccbfree,
+			ata_pciide_dma_sg_func, ata_hba_start,
+			ata_hba_complete, ata_intr,
+			ata_get_status, ata_process_intr, ata_timeout_func,
+			&ata_timer_conf, NULL)) {
+		(void) ata_detach(dip, DDI_DETACH);
 		return (NULL);
 	}
 
-	sol11ata_ctlp->ac_flags |= AC_GHD_INIT;
-	return (sol11ata_ctlp);
+	ata_ctlp->ac_flags |= AC_GHD_INIT;
+	return (ata_ctlp);
 }
 
 /* destroy a controller */
 
 static void
-sol11ata_destroy_controller(
+ata_destroy_controller(
 	dev_info_t *dip)
 {
-	sol11ata_ctl_t *sol11ata_ctlp;
+	ata_ctl_t *ata_ctlp;
 	int	instance;
 
-	ADBG_TRACE(("sol11ata_destroy_controller entered\n"));
+	ADBG_TRACE(("ata_destroy_controller entered\n"));
 
 	instance = ddi_get_instance(dip);
-	sol11ata_ctlp = ddi_get_soft_state(sol11ata_state, instance);
+	ata_ctlp = ddi_get_soft_state(ata_state, instance);
 
-	if (sol11ata_ctlp == NULL)
+	if (ata_ctlp == NULL)
 		return;
 
 	/* destroy ghd */
-	if (sol11ata_ctlp->ac_flags & AC_GHD_INIT)
-		sol11ghd_unregister(&sol11ata_ctlp->ac_ccc);
+	if (ata_ctlp->ac_flags & AC_GHD_INIT)
+		ghd_unregister(&ata_ctlp->ac_ccc);
 
 	/* free the pciide buffer (if any) */
-	sol11ata_pciide_free(sol11ata_ctlp);
+	ata_pciide_free(ata_ctlp);
 
 	/* destroy controller struct */
-	kmem_free(sol11ata_ctlp->ac_arq_pktp, sizeof (sol11ata_pkt_t));
-	ddi_soft_state_free(sol11ata_state, instance);
+	kmem_free(ata_ctlp->ac_arq_pktp, sizeof (ata_pkt_t));
+	ddi_soft_state_free(ata_state, instance);
 
 }
 
@@ -1162,58 +1151,58 @@ sol11ata_destroy_controller(
  *
  */
 
-static sol11ata_drv_t *
-sol11ata_init_drive(
-	sol11ata_ctl_t	*sol11ata_ctlp,
+static ata_drv_t *
+ata_init_drive(
+	ata_ctl_t	*ata_ctlp,
 	uchar_t		targ,
 	uchar_t		lun)
 {
 	static	char	 nec_260[]	= "NEC CD-ROM DRIVE";
-	sol11ata_drv_t *sol11ata_drvp;
-	struct sol11ata_id	*aidp;
+	ata_drv_t *ata_drvp;
+	struct ata_id	*aidp;
 	char	buf[80];
 	int	drive_type;
 	int	i;
 	int	valid_version = 0;
 
-	ADBG_TRACE(("sol11ata_init_drive entered, targ = %d, lun = %d\n",
+	ADBG_TRACE(("ata_init_drive entered, targ = %d, lun = %d\n",
 		    targ, lun));
 
 	/* check if device already exists */
 
-	sol11ata_drvp = CTL2DRV(sol11ata_ctlp, targ, lun);
+	ata_drvp = CTL2DRV(ata_ctlp, targ, lun);
 
-	if (sol11ata_drvp != NULL)
-		return (sol11ata_drvp);
+	if (ata_drvp != NULL)
+		return (ata_drvp);
 
 	/* allocate new device structure */
 
-	sol11ata_drvp = kmem_zalloc(sizeof (sol11ata_drv_t), KM_SLEEP);
-	aidp = &sol11ata_drvp->ad_id;
+	ata_drvp = kmem_zalloc(sizeof (ata_drv_t), KM_SLEEP);
+	aidp = &ata_drvp->ad_id;
 
 	/*
 	 * set up drive struct
 	 */
-	sol11ata_drvp->ad_ctlp = sol11ata_ctlp;
-	sol11ata_drvp->ad_targ = targ;
-	sol11ata_drvp->ad_drive_bits =
-		(sol11ata_drvp->ad_targ == 0 ? ATDH_DRIVE0 : ATDH_DRIVE1);
+	ata_drvp->ad_ctlp = ata_ctlp;
+	ata_drvp->ad_targ = targ;
+	ata_drvp->ad_drive_bits =
+		(ata_drvp->ad_targ == 0 ? ATDH_DRIVE0 : ATDH_DRIVE1);
 	/*
 	 * Add the LUN for SFF-8070i support
 	 */
-	sol11ata_drvp->ad_lun = lun;
-	sol11ata_drvp->ad_drive_bits |= sol11ata_drvp->ad_lun;
+	ata_drvp->ad_lun = lun;
+	ata_drvp->ad_drive_bits |= ata_drvp->ad_lun;
 
 	/*
 	 * get drive type, side effect is to collect
 	 * IDENTIFY DRIVE data
 	 */
 
-	drive_type = sol11ata_drive_type(sol11ata_drvp->ad_drive_bits,
-				    sol11ata_ctlp->ac_iohandle1,
-				    sol11ata_ctlp->ac_ioaddr1,
-				    sol11ata_ctlp->ac_iohandle2,
-				    sol11ata_ctlp->ac_ioaddr2,
+	drive_type = ata_drive_type(ata_drvp->ad_drive_bits,
+				    ata_ctlp->ac_iohandle1,
+				    ata_ctlp->ac_ioaddr1,
+				    ata_ctlp->ac_iohandle2,
+				    ata_ctlp->ac_ioaddr2,
 				    aidp);
 
 	switch (drive_type) {
@@ -1221,17 +1210,17 @@ sol11ata_init_drive(
 		/* no drive found */
 		goto errout;
 	case ATA_DEV_ATAPI:
-		sol11ata_drvp->ad_flags |= AD_ATAPI;
+		ata_drvp->ad_flags |= AD_ATAPI;
 		break;
 	case ATA_DEV_DISK:
-		sol11ata_drvp->ad_flags |= AD_DISK;
+		ata_drvp->ad_flags |= AD_DISK;
 		break;
 	}
 
 	/*
 	 * swap bytes of all text fields
 	 */
-	if (!sol11ata_strncmp(nec_260, aidp->ai_model, sizeof (aidp->ai_model))) {
+	if (!ata_strncmp(nec_260, aidp->ai_model, sizeof (aidp->ai_model))) {
 		swab(aidp->ai_drvser, aidp->ai_drvser,
 			sizeof (aidp->ai_drvser));
 		swab(aidp->ai_fw, aidp->ai_fw,
@@ -1244,14 +1233,14 @@ sol11ata_init_drive(
 	 * Check if this drive has the Single Sector bug
 	 */
 
-	if (sol11ata_check_drive_blacklist(&sol11ata_drvp->ad_id, ATA_BL_1SECTOR))
-		sol11ata_drvp->ad_flags |= AD_1SECTOR;
+	if (ata_check_drive_blacklist(&ata_drvp->ad_id, ATA_BL_1SECTOR))
+		ata_drvp->ad_flags |= AD_1SECTOR;
 	else
-		sol11ata_drvp->ad_flags &= ~AD_1SECTOR;
+		ata_drvp->ad_flags &= ~AD_1SECTOR;
 
 	/* Check if this drive has the "revert to defaults" bug */
-	if (!sol11ata_check_revert_to_defaults(sol11ata_drvp))
-		sol11ata_drvp->ad_flags |= AD_NORVRT;
+	if (!ata_check_revert_to_defaults(ata_drvp))
+		ata_drvp->ad_flags |= AD_NORVRT;
 
 	/* Dump the drive info */
 	(void) strncpy(buf, aidp->ai_model, sizeof (aidp->ai_model));
@@ -1260,8 +1249,8 @@ sol11ata_init_drive(
 		buf[i] = '\0';
 
 	ATAPRT(("?\t%s device at targ %d, lun %d lastlun 0x%x\n",
-		(ATAPIDRV(sol11ata_drvp) ? "ATAPI":"IDE"),
-		sol11ata_drvp->ad_targ, sol11ata_drvp->ad_lun, aidp->ai_lastlun));
+		(ATAPIDRV(ata_drvp) ? "ATAPI":"IDE"),
+		ata_drvp->ad_targ, ata_drvp->ad_lun, aidp->ai_lastlun));
 
 	ATAPRT(("?\tmodel %s\n", buf));
 
@@ -1279,12 +1268,12 @@ sol11ata_init_drive(
 			aidp->ai_minorversion));
 	}
 
-	if (sol11ata_capability_data) {
+	if (ata_capability_data) {
 
 		ATAPRT(("?\t\tstat %x, err %x\n",
-			ddi_get8(sol11ata_ctlp->ac_iohandle2,
-				sol11ata_ctlp->ac_altstatus),
-			ddi_get8(sol11ata_ctlp->ac_iohandle1, sol11ata_ctlp->ac_error)));
+			ddi_get8(ata_ctlp->ac_iohandle2,
+				ata_ctlp->ac_altstatus),
+			ddi_get8(ata_ctlp->ac_iohandle1, ata_ctlp->ac_error)));
 
 		ATAPRT(("?\t\tcfg 0x%x, cap 0x%x\n",
 			aidp->ai_config,
@@ -1334,43 +1323,43 @@ sol11ata_init_drive(
 		}
 	}
 
-	if (ATAPIDRV(sol11ata_drvp)) {
-		if (!sol11atapi_init_drive(sol11ata_drvp))
+	if (ATAPIDRV(ata_drvp)) {
+		if (!sol11atapi_init_drive(ata_drvp))
 			goto errout;
 	} else {
-		if (!sol11ata_disk_init_drive(sol11ata_drvp))
+		if (!sol11ata_disk_init_drive(ata_drvp))
 			goto errout;
 	}
 
 	/*
 	 * store pointer in controller struct
 	 */
-	CTL2DRV(sol11ata_ctlp, targ, lun) = sol11ata_drvp;
+	CTL2DRV(ata_ctlp, targ, lun) = ata_drvp;
 
 	/*
 	 * lock the drive's current settings in case I have to
 	 * reset the drive due to some sort of error
 	 */
-	(void) sol11ata_set_feature(sol11ata_ctlp, sol11ata_drvp, 0x66, 0);
+	(void) sol11ata_set_feature(ata_ctlp, ata_drvp, 0x66, 0);
 
-	return (sol11ata_drvp);
+	return (ata_drvp);
 
 errout:
-	sol11ata_uninit_drive(sol11ata_drvp);
+	ata_uninit_drive(ata_drvp);
 	return (NULL);
 }
 
 /* destroy a drive */
 
 static void
-sol11ata_uninit_drive(
-	sol11ata_drv_t *sol11ata_drvp)
+ata_uninit_drive(
+	ata_drv_t *ata_drvp)
 {
 #if 0
-	sol11ata_ctl_t *sol11ata_ctlp = sol11ata_drvp->ad_ctlp;
+	ata_ctl_t *ata_ctlp = ata_drvp->ad_ctlp;
 #endif
 
-	ADBG_TRACE(("sol11ata_uninit_drive entered\n"));
+	ADBG_TRACE(("ata_uninit_drive entered\n"));
 
 #if 0
 	/*
@@ -1381,49 +1370,49 @@ sol11ata_uninit_drive(
 	/*
 	 * Select the correct drive
 	 */
-	ddi_put8(sol11ata_ctlp->ac_iohandle1, sol11ata_ctlp->ac_drvhd,
-		sol11ata_drvp->ad_drive_bits);
-	ATA_DELAY_400NSEC(sol11ata_ctlp->ac_iohandle2, sol11ata_ctlp->ac_ioaddr2);
+	ddi_put8(ata_ctlp->ac_iohandle1, ata_ctlp->ac_drvhd,
+		ata_drvp->ad_drive_bits);
+	ATA_DELAY_400NSEC(ata_ctlp->ac_iohandle2, ata_ctlp->ac_ioaddr2);
 
 	/*
 	 * Disable interrupts from the drive
 	 */
-	ddi_put8(sol11ata_ctlp->ac_iohandle2, sol11ata_ctlp->ac_devctl,
+	ddi_put8(ata_ctlp->ac_iohandle2, ata_ctlp->ac_devctl,
 		(ATDC_D3 | ATDC_NIEN));
 #endif
 
 	/* interface specific clean-ups */
 
-	if (sol11ata_drvp->ad_flags & AD_ATAPI)
-		sol11atapi_uninit_drive(sol11ata_drvp);
-	else if (sol11ata_drvp->ad_flags & AD_DISK)
-		sol11ata_disk_uninit_drive(sol11ata_drvp);
+	if (ata_drvp->ad_flags & AD_ATAPI)
+		atapi_uninit_drive(ata_drvp);
+	else if (ata_drvp->ad_flags & AD_DISK)
+		ata_disk_uninit_drive(ata_drvp);
 
 	/* free drive struct */
 
-	kmem_free(sol11ata_drvp, sizeof (sol11ata_drv_t));
+	kmem_free(ata_drvp, sizeof (ata_drv_t));
 }
 
 
 /*
- * sol11ata_drive_type()
+ * ata_drive_type()
  *
  * The timeout values and exact sequence of checking is critical
- * especially for sol11atapi device detection, and should not be changed lightly.
+ * especially for atapi device detection, and should not be changed lightly.
  *
  */
 static int
-sol11ata_drive_type(
+ata_drive_type(
 	uchar_t		 drvhd,
 	ddi_acc_handle_t io_hdl1,
 	caddr_t		 ioaddr1,
 	ddi_acc_handle_t io_hdl2,
 	caddr_t		 ioaddr2,
-	struct sol11ata_id	*sol11ata_id_bufp)
+	struct ata_id	*ata_id_bufp)
 {
 	uchar_t	status;
 
-	ADBG_TRACE(("sol11ata_drive_type entered\n"));
+	ADBG_TRACE(("ata_drive_type entered\n"));
 
 	/*
 	 * select the appropriate drive and LUN
@@ -1434,41 +1423,41 @@ sol11ata_drive_type(
 	/*
 	 * make certain the drive is selected, and wait for not busy
 	 */
-	(void) sol11ata_wait3(io_hdl2, ioaddr2, 0, ATS_BSY, 0x7f, 0, 0x7f, 0,
+	(void) ata_wait3(io_hdl2, ioaddr2, 0, ATS_BSY, 0x7f, 0, 0x7f, 0,
 		5 * 1000000);
 
 	status = ddi_get8(io_hdl2, (uchar_t *)ioaddr2 + AT_ALTSTATUS);
 
 	if (status & ATS_BSY) {
-		ADBG_TRACE(("sol11ata_drive_type BUSY 0x%p 0x%x\n",
+		ADBG_TRACE(("ata_drive_type BUSY 0x%p 0x%x\n",
 			    ioaddr1, status));
 		return (ATA_DEV_NONE);
 	}
 
-	if (sol11ata_disk_id(io_hdl1, ioaddr1, io_hdl2, ioaddr2, sol11ata_id_bufp))
+	if (sol11ata_disk_id(io_hdl1, ioaddr1, io_hdl2, ioaddr2, ata_id_bufp))
 		return (ATA_DEV_DISK);
 
 	/*
-	 * No disk, check for sol11atapi unit.
+	 * No disk, check for atapi unit.
 	 */
 	if (!sol11atapi_signature(io_hdl1, ioaddr1)) {
 #ifndef ATA_DISABLE_ATAPI_1_7
 		/*
-		 * Check for old (but prevalent) sol11atapi 1.7B
+		 * Check for old (but prevalent) atapi 1.7B
 		 * spec device, the only known example is the
 		 * NEC CDR-260 (not 260R which is (mostly) ATAPI 1.2
 		 * compliant). This device has no signature
 		 * and requires conversion from hex to BCD
 		 * for some scsi audio commands.
 		 */
-		if (sol11atapi_id(io_hdl1, ioaddr1, io_hdl2, ioaddr2, sol11ata_id_bufp)) {
+		if (sol11atapi_id(io_hdl1, ioaddr1, io_hdl2, ioaddr2, ata_id_bufp)) {
 			return (ATA_DEV_ATAPI);
 		}
 #endif
 		return (ATA_DEV_NONE);
 	}
 
-	if (sol11atapi_id(io_hdl1, ioaddr1, io_hdl2, ioaddr2, sol11ata_id_bufp)) {
+	if (sol11atapi_id(io_hdl1, ioaddr1, io_hdl2, ioaddr2, ata_id_bufp)) {
 		return (ATA_DEV_ATAPI);
 	}
 
@@ -1484,7 +1473,7 @@ sol11ata_drive_type(
  * the desired bit configuration, we return TRUE, else FALSE.
  */
 
-int sol11ata_usec_delay = 10;
+int ata_usec_delay = 10;
 
 int
 sol11ata_wait(
@@ -1500,8 +1489,8 @@ sol11ata_wait(
 		val = ddi_get8(io_hdl, (uchar_t *)ioaddr + AT_ALTSTATUS);
 		if ((val & onbits) == onbits && (val & offbits) == 0)
 			return (TRUE);
-		drv_usecwait(sol11ata_usec_delay);
-		timeout_usec -= sol11ata_usec_delay;
+		drv_usecwait(ata_usec_delay);
+		timeout_usec -= ata_usec_delay;
 	} while (timeout_usec > 0);
 
 	return (FALSE);
@@ -1516,7 +1505,7 @@ sol11ata_wait(
  * until the timeout expires
  */
 int
-sol11ata_wait3(
+ata_wait3(
 	ddi_acc_handle_t io_hdl,
 	caddr_t		ioaddr,
 	uchar_t		onbits1,
@@ -1551,8 +1540,8 @@ sol11ata_wait3(
 			return (FALSE);
 		}
 
-		drv_usecwait(sol11ata_usec_delay);
-		timeout_usec -= sol11ata_usec_delay;
+		drv_usecwait(ata_usec_delay);
+		timeout_usec -= ata_usec_delay;
 	} while (timeout_usec > 0);
 
 	return (FALSE);
@@ -1566,20 +1555,20 @@ sol11ata_wait3(
  */
 
 int
-sol11ata_id_common(
+ata_id_common(
 	uchar_t		 id_cmd,
 	int		 expect_drdy,
 	ddi_acc_handle_t io_hdl1,
 	caddr_t		 ioaddr1,
 	ddi_acc_handle_t io_hdl2,
 	caddr_t		 ioaddr2,
-	struct sol11ata_id	*aidp)
+	struct ata_id	*aidp)
 {
 	uchar_t	status;
 
-	ADBG_TRACE(("sol11ata_id_common entered\n"));
+	ADBG_TRACE(("ata_id_common entered\n"));
 
-	bzero(aidp, sizeof (struct sol11ata_id));
+	bzero(aidp, sizeof (struct ata_id));
 
 	/*
 	 * clear the features register
@@ -1605,7 +1594,7 @@ sol11ata_id_common(
 	 * make sure we give them enough time to respond.
 	 */
 
-	(void) sol11ata_wait3(io_hdl2, ioaddr2, 0, ATS_BSY,
+	(void) ata_wait3(io_hdl2, ioaddr2, 0, ATS_BSY,
 			ATS_ERR, ATS_BSY, 0x7f, 0, 5 * 1000000);
 
 	/*
@@ -1622,7 +1611,7 @@ sol11ata_id_common(
 	}
 
 	if (status & ATS_BSY) {
-		ADBG_ERROR(("sol11ata_id_common: BUSY status 0x%x error 0x%x\n",
+		ADBG_ERROR(("ata_id_common: BUSY status 0x%x error 0x%x\n",
 			ddi_get8(io_hdl2, (uchar_t *)ioaddr2 +AT_ALTSTATUS),
 			ddi_get8(io_hdl1, (uchar_t *)ioaddr1 + AT_ERROR)));
 		return (FALSE);
@@ -1637,7 +1626,7 @@ sol11ata_id_common(
 		 * drives de-assert BSY before asserting DRQ.
 		 */
 		if (!sol11ata_wait(io_hdl2, ioaddr2, ATS_DRQ, ATS_BSY, 1000000)) {
-		ADBG_WARN(("sol11ata_id_common: !DRQ status 0x%x error 0x%x\n",
+		ADBG_WARN(("ata_id_common: !DRQ status 0x%x error 0x%x\n",
 			ddi_get8(io_hdl2, (uchar_t *)ioaddr2 +AT_ALTSTATUS),
 			ddi_get8(io_hdl1, (uchar_t *)ioaddr1 + AT_ERROR)));
 		return (FALSE);
@@ -1667,7 +1656,7 @@ sol11ata_id_common(
 	 */
 	if (!sol11ata_wait(io_hdl2, ioaddr2, (uchar_t)(expect_drdy ? ATS_DRDY : 0),
 					(ATS_BSY | ATS_DRQ), 1000000)) {
-		ADBG_WARN(("sol11ata_id_common: bad status 0x%x error 0x%x\n",
+		ADBG_WARN(("ata_id_common: bad status 0x%x error 0x%x\n",
 			ddi_get8(io_hdl2, (uchar_t *)ioaddr2 + AT_ALTSTATUS),
 			ddi_get8(io_hdl1, (uchar_t *)ioaddr1 + AT_ERROR)));
 		return (FALSE);
@@ -1680,7 +1669,7 @@ sol11ata_id_common(
 	 * (non-PACKET) device.
 	 */
 	if (status & (ATS_DF | ATS_ERR)) {
-		ADBG_WARN(("sol11ata_id_common: status 0x%x error 0x%x \n",
+		ADBG_WARN(("ata_id_common: status 0x%x error 0x%x \n",
 			ddi_get8(io_hdl2, (uchar_t *)ioaddr2 + AT_ALTSTATUS),
 			ddi_get8(io_hdl1, (uchar_t *)ioaddr1 + AT_ERROR)));
 		return (FALSE);
@@ -1695,9 +1684,9 @@ sol11ata_id_common(
  */
 
 int
-sol11ata_command(
-	sol11ata_ctl_t *sol11ata_ctlp,
-	sol11ata_drv_t *sol11ata_drvp,
+ata_command(
+	ata_ctl_t *ata_ctlp,
+	ata_drv_t *ata_drvp,
 	int		 expect_drdy,
 	int		 silent,
 	uint_t		 busy_wait,
@@ -1709,19 +1698,19 @@ sol11ata_command(
 	uchar_t		 cyl_low,
 	uchar_t		 cyl_hi)
 {
-	ddi_acc_handle_t io_hdl1 = sol11ata_ctlp->ac_iohandle1;
-	ddi_acc_handle_t io_hdl2 = sol11ata_ctlp->ac_iohandle2;
+	ddi_acc_handle_t io_hdl1 = ata_ctlp->ac_iohandle1;
+	ddi_acc_handle_t io_hdl2 = ata_ctlp->ac_iohandle2;
 	uchar_t		 status;
 
 	/* select the drive */
-	ddi_put8(io_hdl1, sol11ata_ctlp->ac_drvhd, sol11ata_drvp->ad_drive_bits);
-	ATA_DELAY_400NSEC(io_hdl2, sol11ata_ctlp->ac_ioaddr2);
+	ddi_put8(io_hdl1, ata_ctlp->ac_drvhd, ata_drvp->ad_drive_bits);
+	ATA_DELAY_400NSEC(io_hdl2, ata_ctlp->ac_ioaddr2);
 
 	/* make certain the drive selected */
-	if (!sol11ata_wait(io_hdl2, sol11ata_ctlp->ac_ioaddr2,
+	if (!sol11ata_wait(io_hdl2, ata_ctlp->ac_ioaddr2,
 			(uchar_t)(expect_drdy ? ATS_DRDY : 0),
 			ATS_BSY, busy_wait)) {
-		ADBG_ERROR(("sol11ata_command: select failed "
+		ADBG_ERROR(("ata_command: select failed "
 			    "DRDY 0x%x CMD 0x%x F 0x%x N 0x%x  "
 			    "S 0x%x H 0x%x CL 0x%x CH 0x%x\n",
 			    expect_drdy, cmd, feature, count,
@@ -1732,22 +1721,22 @@ sol11ata_command(
 	/*
 	 * set all the regs
 	 */
-	ddi_put8(io_hdl1, sol11ata_ctlp->ac_drvhd, (head | sol11ata_drvp->ad_drive_bits));
-	ddi_put8(io_hdl1, sol11ata_ctlp->ac_sect, sector);
-	ddi_put8(io_hdl1, sol11ata_ctlp->ac_count, count);
-	ddi_put8(io_hdl1, sol11ata_ctlp->ac_lcyl, cyl_low);
-	ddi_put8(io_hdl1, sol11ata_ctlp->ac_hcyl, cyl_hi);
-	ddi_put8(io_hdl1, sol11ata_ctlp->ac_feature, feature);
+	ddi_put8(io_hdl1, ata_ctlp->ac_drvhd, (head | ata_drvp->ad_drive_bits));
+	ddi_put8(io_hdl1, ata_ctlp->ac_sect, sector);
+	ddi_put8(io_hdl1, ata_ctlp->ac_count, count);
+	ddi_put8(io_hdl1, ata_ctlp->ac_lcyl, cyl_low);
+	ddi_put8(io_hdl1, ata_ctlp->ac_hcyl, cyl_hi);
+	ddi_put8(io_hdl1, ata_ctlp->ac_feature, feature);
 
 	/* send the command */
-	ddi_put8(io_hdl1, sol11ata_ctlp->ac_cmd, cmd);
+	ddi_put8(io_hdl1, ata_ctlp->ac_cmd, cmd);
 
 	/* wait for the busy bit to settle */
-	ATA_DELAY_400NSEC(io_hdl2, sol11ata_ctlp->ac_ioaddr2);
+	ATA_DELAY_400NSEC(io_hdl2, ata_ctlp->ac_ioaddr2);
 
 	/* wait for not busy */
-	if (!sol11ata_wait(io_hdl2, sol11ata_ctlp->ac_ioaddr2, 0, ATS_BSY, busy_wait)) {
-		ADBG_ERROR(("sol11ata_command: BSY too long!"
+	if (!sol11ata_wait(io_hdl2, ata_ctlp->ac_ioaddr2, 0, ATS_BSY, busy_wait)) {
+		ADBG_ERROR(("ata_command: BSY too long!"
 			    "DRDY 0x%x CMD 0x%x F 0x%x N 0x%x  "
 			    "S 0x%x H 0x%x CL 0x%x CH 0x%x\n",
 			    expect_drdy, cmd, feature, count,
@@ -1758,24 +1747,24 @@ sol11ata_command(
 	/*
 	 * wait for DRDY before continuing
 	 */
-	(void) sol11ata_wait3(io_hdl2, sol11ata_ctlp->ac_ioaddr2,
+	(void) ata_wait3(io_hdl2, ata_ctlp->ac_ioaddr2,
 			ATS_DRDY, ATS_BSY, /* okay */
 			ATS_ERR, ATS_BSY, /* cmd failed */
 			ATS_DF, ATS_BSY, /* drive failed */
 			busy_wait);
 
 	/* read status to clear IRQ, and check for error */
-	status =  ddi_get8(io_hdl1, sol11ata_ctlp->ac_status);
+	status =  ddi_get8(io_hdl1, ata_ctlp->ac_status);
 
 	if ((status & (ATS_BSY | ATS_DF | ATS_ERR)) == 0)
 		return (TRUE);
 
 	if (!silent) {
-		ADBG_ERROR(("sol11ata_command status 0x%x error 0x%x "
+		ADBG_ERROR(("ata_command status 0x%x error 0x%x "
 			    "DRDY 0x%x CMD 0x%x F 0x%x N 0x%x  "
 			    "S 0x%x H 0x%x CL 0x%x CH 0x%x\n",
-			    ddi_get8(io_hdl1, sol11ata_ctlp->ac_status),
-			    ddi_get8(io_hdl1, sol11ata_ctlp->ac_error),
+			    ddi_get8(io_hdl1, ata_ctlp->ac_status),
+			    ddi_get8(io_hdl1, ata_ctlp->ac_error),
 			    expect_drdy, cmd, feature, count,
 			    sector, head, cyl_low, cyl_hi));
 	}
@@ -1792,14 +1781,14 @@ sol11ata_command(
 
 int
 sol11ata_set_feature(
-	sol11ata_ctl_t *sol11ata_ctlp,
-	sol11ata_drv_t *sol11ata_drvp,
+	ata_ctl_t *ata_ctlp,
+	ata_drv_t *ata_drvp,
 	uchar_t    feature,
 	uchar_t    value)
 {
 	int		 rc;
 
-	rc = sol11ata_command(sol11ata_ctlp, sol11ata_drvp, TRUE, TRUE, sol11ata_set_feature_wait,
+	rc = ata_command(ata_ctlp, ata_drvp, TRUE, TRUE, ata_set_feature_wait,
 		ATC_SET_FEAT, feature, value, 0, 0, 0, 0);
 		/* feature, count, sector, head, cyl_low, cyl_hi */
 
@@ -1820,18 +1809,18 @@ sol11ata_set_feature(
  */
 
 static int
-sol11ata_flush_cache(
-	sol11ata_ctl_t *sol11ata_ctlp,
-	sol11ata_drv_t *sol11ata_drvp)
+ata_flush_cache(
+	ata_ctl_t *ata_ctlp,
+	ata_drv_t *ata_drvp)
 {
 	/* this command is optional so fail silently */
-	return (sol11ata_command(sol11ata_ctlp, sol11ata_drvp, TRUE, TRUE,
-			    sol11ata_flush_cache_wait,
+	return (ata_command(ata_ctlp, ata_drvp, TRUE, TRUE,
+			    ata_flush_cache_wait,
 			    ATC_FLUSH_CACHE, 0, 0, 0, 0, 0, 0));
 }
 
 /*
- * sol11ata_setup_ioaddr()
+ * ata_setup_ioaddr()
  *
  * Map the device registers and return the handles.
  *
@@ -1844,7 +1833,7 @@ sol11ata_flush_cache(
  */
 
 static int
-sol11ata_setup_ioaddr(
+ata_setup_ioaddr(
 	dev_info_t	 *dip,
 	ddi_acc_handle_t *handle1p,
 	caddr_t		 *addr1p,
@@ -1857,31 +1846,7 @@ sol11ata_setup_ioaddr(
 	char	*bufp;
 	int	 rnumber;
 	int	 rc;
-	int  numregs;
 	off_t	 regsize;
-
-	rc = ddi_dev_nregs(dip, &numregs);
-	
-	ddi_acc_handle_t  pci_conf_handle; /* pci config space handle */
-	if (pci_config_setup(dip, &pci_conf_handle) !=
-	    DDI_SUCCESS) {
-		cmn_err(CE_WARN,
-		    "sil3xxx_init_controller: Can't do pci_config_setup\n");
-		return (FALSE);
-	}
-	uint16_t pci_comm = pci_config_get16(pci_conf_handle, PCI_CONF_COMM);
-	uint16_t pci_venid = pci_config_get16(pci_conf_handle, PCI_CONF_VENID);
-	uint16_t pci_devid = pci_config_get16(pci_conf_handle, PCI_CONF_DEVID);
-	pci_config_teardown(&pci_conf_handle);
-	if (rc != DDI_SUCCESS) {
-		ADBG_ERROR((
-			"sol11aga_setup_ioaddr: failed to retrieve number of registers"));
-		return (FALSE);
-	} else {
-		ADBG_INIT(("sol11ata_setup_ioaddr: numregs %d\n", numregs));
-		ADBG_INIT(("sol11ata_setup_ioaddr: venid %04x devid %04x comm %04x\n", pci_venid, pci_devid, pci_comm));
-
-	}
 
 	/*
 	 * Make certain the controller is enabled and its regs are map-able
@@ -1889,14 +1854,14 @@ sol11ata_setup_ioaddr(
 	 */
 	rc = ddi_dev_regsize(dip, 0, &regsize);
 	if (rc != DDI_SUCCESS || regsize <= AT_CMD) {
-		ADBG_INIT(("sol11ata_setup_ioaddr(1): rc %d regsize %lld\n",
+		ADBG_INIT(("ata_setup_ioaddr(1): rc %d regsize %lld\n",
 			    rc, (long long)regsize));
 		return (FALSE);
 	}
 
 	rc = ddi_dev_regsize(dip, 1, &regsize);
 	if (rc != DDI_SUCCESS || regsize <= AT_ALTSTATUS) {
-		ADBG_INIT(("sol11ata_setup_ioaddr(2): rc %d regsize %lld\n",
+		ADBG_INIT(("ata_setup_ioaddr(2): rc %d regsize %lld\n",
 			    rc, (long long)regsize));
 		return (FALSE);
 	}
@@ -1928,17 +1893,17 @@ sol11ata_setup_ioaddr(
 	rc = ddi_prop_lookup_string(DDI_DEV_T_ANY, ddi_get_parent(dip),
 				    DDI_PROP_DONTPASS, "device_type", &bufp);
 	if (rc != DDI_PROP_SUCCESS) {
-		ADBG_ERROR(("sol11ata_setup_ioaddr !device_type\n"));
+		ADBG_ERROR(("ata_setup_ioaddr !device_type\n"));
 		goto not_pciide;
 	}
 
-	if (strcmp(bufp, "pci-ide") != 0) {
+	if (strcmp(bufp, "sol11pci-ide") != 0) {
 		/*
 		 * If it's not a PCI-IDE, there are only two reg tuples
 		 * and the first one contains the I/O base (170 or 1f0)
 		 * rather than the controller instance number.
 		 */
-		ADBG_TRACE(("sol11ata_setup_ioaddr !pci-ide\n"));
+		ADBG_TRACE(("ata_setup_ioaddr !sol11pci-ide\n"));
 		ddi_prop_free(bufp);
 		goto not_pciide;
 	}
@@ -1954,7 +1919,7 @@ sol11ata_setup_ioaddr(
 	 */
 	rc = ddi_dev_regsize(dip, 2, &regsize);
 	if (rc != DDI_SUCCESS || regsize < 8) {
-		ADBG_INIT(("sol11ata_setup_ioaddr(3): rc %d regsize %lld\n",
+		ADBG_INIT(("ata_setup_ioaddr(3): rc %d regsize %lld\n",
 			    rc, (long long)regsize));
 		goto not_pciide;
 	}
@@ -1963,7 +1928,7 @@ sol11ata_setup_ioaddr(
 
 	if (rc != DDI_SUCCESS) {
 		/* map failed, try to use in non-pci-ide mode */
-		ADBG_WARN(("sol11ata_setup_ioaddr bus master map failed, rc=0x%x\n",
+		ADBG_WARN(("ata_setup_ioaddr bus master map failed, rc=0x%x\n",
 			rc));
 		*bm_hdlp = NULL;
 	}
@@ -1977,18 +1942,18 @@ not_pciide:
 				handle1p);
 
 	if (rc != DDI_SUCCESS) {
-		cmn_err(CE_WARN, "sol11ata: reg tuple 0 map failed, rc=0x%x\n", rc);
+		cmn_err(CE_WARN, "ata: reg tuple 0 map failed, rc=0x%x\n", rc);
 		goto out1;
 	}
 
 	/*
 	 * If the controller is being used in compatibility mode
-	 * via /devices/isa/sol11ata@1,{1f0,1f0}/..., the reg property
+	 * via /devices/isa/ata@1,{1f0,1f0}/..., the reg property
 	 * will specify zeros for the I/O ports for the PCI
 	 * instance.
 	 */
 	if (*addr1p == 0) {
-		ADBG_TRACE(("sol11ata_setup_ioaddr ioaddr1 0\n"));
+		ADBG_TRACE(("ata_setup_ioaddr ioaddr1 0\n"));
 		goto out2;
 	}
 
@@ -2000,7 +1965,7 @@ not_pciide:
 	if (rc == DDI_SUCCESS)
 		return (TRUE);
 
-	cmn_err(CE_WARN, "sol11ata: reg tuple 1 map failed, rc=0x%x", rc);
+	cmn_err(CE_WARN, "ata: reg tuple 1 map failed, rc=0x%x", rc);
 
 out2:
 	if (*handle1p != NULL) {
@@ -2038,44 +2003,44 @@ out1:
  */
 
 static void
-sol11ata_init_pciide(
+ata_init_pciide(
 	dev_info_t	 *dip,
-	sol11ata_ctl_t *sol11ata_ctlp)
+	ata_ctl_t *ata_ctlp)
 {
 	uint_t	 class_code;
 	uchar_t	 status;
 
-	sol11ata_cntrl_DMA_sel_msg = NULL;
+	ata_cntrl_DMA_sel_msg = NULL;
 
-	if (sol11ata_ctlp->ac_bmhandle == NULL) {
-		sol11ata_ctlp->ac_pciide = FALSE;
-		sol11ata_ctlp->ac_pciide_bm = FALSE;
-		sol11ata_cntrl_DMA_sel_msg = "cntrl not Bus Master DMA capable";
+	if (ata_ctlp->ac_bmhandle == NULL) {
+		ata_ctlp->ac_pciide = FALSE;
+		ata_ctlp->ac_pciide_bm = FALSE;
+		ata_cntrl_DMA_sel_msg = "cntrl not Bus Master DMA capable";
 		return;
 	}
 
 	/*
 	 * check if it's a known bogus PCI-IDE chip
 	 */
-	if (sol11ata_check_pciide_blacklist(dip, ATA_BL_BOGUS)) {
-		ADBG_WARN(("sol11ata_setup_ioaddr pci-ide blacklist\n"));
-		sol11ata_ctlp->ac_pciide = FALSE;
-		sol11ata_ctlp->ac_pciide_bm = FALSE;
-		sol11ata_cntrl_DMA_sel_msg = "cntrl blacklisted";
+	if (ata_check_pciide_blacklist(dip, ATA_BL_BOGUS)) {
+		ADBG_WARN(("ata_setup_ioaddr sol11pci-ide blacklist\n"));
+		ata_ctlp->ac_pciide = FALSE;
+		ata_ctlp->ac_pciide_bm = FALSE;
+		ata_cntrl_DMA_sel_msg = "cntrl blacklisted";
 		return;
 	}
-	sol11ata_ctlp->ac_pciide = TRUE;
+	ata_ctlp->ac_pciide = TRUE;
 
-	if (sol11ata_check_pciide_blacklist(dip, ATA_BL_BMSTATREG_PIO_BROKEN)) {
-		sol11ata_ctlp->ac_flags |= AC_BMSTATREG_PIO_BROKEN;
+	if (ata_check_pciide_blacklist(dip, ATA_BL_BMSTATREG_PIO_BROKEN)) {
+		ata_ctlp->ac_flags |= AC_BMSTATREG_PIO_BROKEN;
 	}
 
 	/*
 	 * check for a PCI-IDE chip with a broken DMA engine
 	 */
-	if (sol11ata_check_pciide_blacklist(dip, ATA_BL_NODMA)) {
-		sol11ata_ctlp->ac_pciide_bm = FALSE;
-		sol11ata_cntrl_DMA_sel_msg =
+	if (ata_check_pciide_blacklist(dip, ATA_BL_NODMA)) {
+		ata_ctlp->ac_pciide_bm = FALSE;
+		ata_cntrl_DMA_sel_msg =
 			"cntrl blacklisted/DMA engine broken";
 		return;
 	}
@@ -2091,8 +2056,8 @@ sol11ata_init_pciide(
 	class_code = ddi_prop_get_int(DDI_DEV_T_ANY, ddi_get_parent(dip),
 		DDI_PROP_DONTPASS, "class-code", 0);
 	if ((class_code & PCIIDE_BM_CAP_MASK) != PCIIDE_BM_CAP_MASK) {
-		sol11ata_ctlp->ac_pciide_bm = FALSE;
-		sol11ata_cntrl_DMA_sel_msg =
+		ata_ctlp->ac_pciide_bm = FALSE;
+		ata_cntrl_DMA_sel_msg =
 			"cntrl not Bus Master DMA capable";
 		return;
 	}
@@ -2101,8 +2066,8 @@ sol11ata_init_pciide(
 	 * Avoid doing DMA on "simplex" chips which share hardware
 	 * between channels
 	 */
-	status = ddi_get8(sol11ata_ctlp->ac_bmhandle,
-			(uchar_t *)sol11ata_ctlp->ac_bmaddr + PCIIDE_BMISX_REG);
+	status = ddi_get8(ata_ctlp->ac_bmhandle,
+			(uchar_t *)ata_ctlp->ac_bmaddr + PCIIDE_BMISX_REG);
 	/*
 	 * Some motherboards have CSB5's that are wired "to emulate CSB4 mode".
 	 * In such a mode, the simplex bit is asserted,  but in fact testing
@@ -2114,11 +2079,11 @@ sol11ata_init_pciide(
 	 */
 
 	if (status & PCIIDE_BMISX_SIMPLEX) {
-		if (sol11ata_check_pciide_blacklist(dip, ATA_BL_NO_SIMPLEX))  {
+		if (ata_check_pciide_blacklist(dip, ATA_BL_NO_SIMPLEX))  {
 			cmn_err(CE_WARN, "Ignoring false simplex bit \n");
 		} else {
-			sol11ata_ctlp->ac_pciide_bm = FALSE;
-			sol11ata_cntrl_DMA_sel_msg =
+			ata_ctlp->ac_pciide_bm = FALSE;
+			ata_cntrl_DMA_sel_msg =
 				"cntrl sharing DMA engine between channels";
 			return;
 		}
@@ -2128,11 +2093,11 @@ sol11ata_init_pciide(
 	 * It's a compatible PCI-IDE Bus Mastering controller,
 	 * allocate and map the DMA Scatter/Gather list (PRDE table).
 	 */
-	if (sol11ata_pciide_alloc(dip, sol11ata_ctlp))
-		sol11ata_ctlp->ac_pciide_bm = TRUE;
+	if (ata_pciide_alloc(dip, ata_ctlp))
+		ata_ctlp->ac_pciide_bm = TRUE;
 	else {
-		sol11ata_ctlp->ac_pciide_bm = FALSE;
-		sol11ata_cntrl_DMA_sel_msg = "unable to init DMA S/G list";
+		ata_ctlp->ac_pciide_bm = FALSE;
+		ata_cntrl_DMA_sel_msg = "unable to init DMA S/G list";
 	}
 }
 
@@ -2141,47 +2106,47 @@ sol11ata_init_pciide(
  * Determine whether to enable DMA support for this drive.
  * The controller and the drive both have to support DMA.
  * The controller's capabilities were already checked in
- * sol11ata_init_pciide(), now just check the drive's capabilities.
+ * ata_init_pciide(), now just check the drive's capabilities.
  *
  */
 
 static int
-sol11ata_init_drive_pcidma(
-	sol11ata_ctl_t *sol11ata_ctlp,
-	sol11ata_drv_t *sol11ata_drvp,
+ata_init_drive_pcidma(
+	ata_ctl_t *ata_ctlp,
+	ata_drv_t *ata_drvp,
 	dev_info_t *tdip)
 {
 	boolean_t dma;
 	boolean_t cd_dma;
 	boolean_t disk_dma;
-	boolean_t sol11atapi_dma;
-	int sol11ata_options;
+	boolean_t atapi_dma;
+	int ata_options;
 
-	sol11ata_dev_DMA_sel_msg = NULL;
+	ata_dev_DMA_sel_msg = NULL;
 
-	if (sol11ata_ctlp->ac_pciide_bm != TRUE) {
-		sol11ata_dev_DMA_sel_msg =
+	if (ata_ctlp->ac_pciide_bm != TRUE) {
+		ata_dev_DMA_sel_msg =
 		    "controller is not Bus Master capable";
 
 		return (ATA_DMA_OFF);
 	}
 
-	sol11ata_options = ddi_prop_get_int(DDI_DEV_T_ANY, sol11ata_ctlp->ac_dip,
+	ata_options = ddi_prop_get_int(DDI_DEV_T_ANY, ata_ctlp->ac_dip,
 			0, "sol11ata-options", 0);
 
-	if (!(sol11ata_options & ATA_OPTIONS_DMA)) {
+	if (!(ata_options & ATA_OPTIONS_DMA)) {
 		/*
-		 * Either the sol11ata-options property was not found or
+		 * Either the ata-options property was not found or
 		 * DMA is not enabled by this property
 		 */
-		sol11ata_dev_DMA_sel_msg =
+		ata_dev_DMA_sel_msg =
 			"disabled by \"sol11ata-options\" property";
 
 		return (ATA_DMA_OFF);
 	}
 
-	if (sol11ata_check_drive_blacklist(&sol11ata_drvp->ad_id, ATA_BL_NODMA)) {
-		sol11ata_dev_DMA_sel_msg = "device not DMA capable; blacklisted";
+	if (ata_check_drive_blacklist(&ata_drvp->ad_id, ATA_BL_NODMA)) {
+		ata_dev_DMA_sel_msg = "device not DMA capable; blacklisted";
 
 		return (ATA_DMA_OFF);
 	}
@@ -2198,50 +2163,50 @@ sol11ata_init_drive_pcidma(
 	 *
 	 */
 
-	if (!((sol11ata_drvp->ad_id.ai_majorversion & 0x8000) == 0 &&
-	    sol11ata_drvp->ad_id.ai_majorversion >= (1 << 2)) &&
-	    !(sol11ata_drvp->ad_id.ai_cap & ATAC_DMA_SUPPORT)) {
-		sol11ata_dev_DMA_sel_msg = "device not DMA capable";
+	if (!((ata_drvp->ad_id.ai_majorversion & 0x8000) == 0 &&
+	    ata_drvp->ad_id.ai_majorversion >= (1 << 2)) &&
+	    !(ata_drvp->ad_id.ai_cap & ATAC_DMA_SUPPORT)) {
+		ata_dev_DMA_sel_msg = "device not DMA capable";
 
 		return (ATA_DMA_OFF);
 	}
 
-	dma = sol11ata_prop_lookup_int(DDI_DEV_T_ANY, tdip,
+	dma = ata_prop_lookup_int(DDI_DEV_T_ANY, tdip,
 		0, "sol11ata-dma-enabled", TRUE);
-	disk_dma = sol11ata_prop_lookup_int(DDI_DEV_T_ANY, tdip,
+	disk_dma = ata_prop_lookup_int(DDI_DEV_T_ANY, tdip,
 		0, "sol11ata-disk-dma-enabled", TRUE);
-	cd_dma = sol11ata_prop_lookup_int(DDI_DEV_T_ANY, tdip,
+	cd_dma = ata_prop_lookup_int(DDI_DEV_T_ANY, tdip,
 		0, "sol11atapi-cd-dma-enabled", FALSE);
-	sol11atapi_dma = sol11ata_prop_lookup_int(DDI_DEV_T_ANY, tdip,
+	atapi_dma = ata_prop_lookup_int(DDI_DEV_T_ANY, tdip,
 		0, "sol11atapi-other-dma-enabled", TRUE);
 
 	if (dma == FALSE) {
-		cmn_err(CE_CONT, "?sol11ata_init_drive_pcidma: "
+		cmn_err(CE_CONT, "?ata_init_drive_pcidma: "
 		    "DMA disabled by \"sol11ata-dma-enabled\" property");
-		sol11ata_dev_DMA_sel_msg = "disabled by prop sol11ata-dma-enabled";
+		ata_dev_DMA_sel_msg = "disabled by prop sol11ata-dma-enabled";
 
 		return (ATA_DMA_OFF);
 	}
 
-	if (IS_CDROM(sol11ata_drvp) == TRUE) {
+	if (IS_CDROM(ata_drvp) == TRUE) {
 		if (cd_dma == FALSE) {
-			sol11ata_dev_DMA_sel_msg =
+			ata_dev_DMA_sel_msg =
 			    "disabled.  Control with \"sol11atapi-cd-dma-enabled\""
 			    " property";
 
 			return (ATA_DMA_OFF);
 		}
 
-	} else if (ATAPIDRV(sol11ata_drvp) == FALSE) {
+	} else if (ATAPIDRV(ata_drvp) == FALSE) {
 		if (disk_dma == FALSE) {
-			sol11ata_dev_DMA_sel_msg =
+			ata_dev_DMA_sel_msg =
 			    "disabled by \"sol11ata-disk-dma-enabled\" property";
 
 			return (ATA_DMA_OFF);
 		}
 
-	} else if (sol11atapi_dma == FALSE) {
-			sol11ata_dev_DMA_sel_msg =
+	} else if (atapi_dma == FALSE) {
+			ata_dev_DMA_sel_msg =
 			    "disabled by \"sol11atapi-other-dma-enabled\" property";
 
 			return (ATA_DMA_OFF);
@@ -2258,7 +2223,7 @@ sol11ata_init_drive_pcidma(
  */
 
 static int
-sol11ata_strncmp(
+ata_strncmp(
 	char *p1,
 	char *p2,
 	int cnt)
@@ -2300,20 +2265,20 @@ sol11ata_strncmp(
  * on the target's dev_info node. Currently, the sd target driver
  * is the only driver which refers to this property.
  *
- * If the flag sol11ata_id_debug is set also create the
- * the "sol11ata" or "sol11atapi" property on the target's dev_info node
+ * If the flag ata_id_debug is set also create the
+ * the "ata" or "sol11atapi" property on the target's dev_info node
  *
  */
 
 int
-sol11ata_prop_create(
+ata_prop_create(
 	dev_info_t *tgt_dip,
-	sol11ata_drv_t  *sol11ata_drvp,
+	ata_drv_t  *ata_drvp,
 	char	   *name)
 {
 	int	rc;
 
-	ADBG_TRACE(("sol11ata_prop_create 0x%p 0x%p %s\n", tgt_dip, sol11ata_drvp, name));
+	ADBG_TRACE(("ata_prop_create 0x%p 0x%p %s\n", tgt_dip, ata_drvp, name));
 
 	if (strcmp("sol11atapi", name) == 0) {
 		rc =  ndi_prop_update_string(DDI_DEV_T_NONE, tgt_dip,
@@ -2322,13 +2287,13 @@ sol11ata_prop_create(
 			return (FALSE);
 	}
 
-	if (!sol11ata_id_debug)
+	if (!ata_id_debug)
 		return (TRUE);
 
 	rc =  ndi_prop_update_byte_array(DDI_DEV_T_NONE, tgt_dip, name,
-		(uchar_t *)&sol11ata_drvp->ad_id, sizeof (sol11ata_drvp->ad_id));
+		(uchar_t *)&ata_drvp->ad_id, sizeof (ata_drvp->ad_id));
 	if (rc != DDI_PROP_SUCCESS) {
-		ADBG_ERROR(("sol11ata_prop_create failed, rc=%d\n", rc));
+		ADBG_ERROR(("ata_prop_create failed, rc=%d\n", rc));
 	}
 	return (TRUE);
 }
@@ -2343,12 +2308,12 @@ sol11ata_prop_create(
  * feature. You need that feature to efficiently support ATAPI
  * tape drives. See the 1394-ATA Tailgate spec (D97107), Figure 24,
  * for an example of how to add the necessary additional NextActions
- * and NextStates to this FSM and the sol11atapi_fsm, in order to support
+ * and NextStates to this FSM and the atapi_fsm, in order to support
  * the Overlap Feature.
  */
 
 
-uchar_t sol11ata_ctlr_fsm_NextAction[ATA_CTLR_NSTATES][ATA_CTLR_NFUNCS] = {
+uchar_t ata_ctlr_fsm_NextAction[ATA_CTLR_NSTATES][ATA_CTLR_NFUNCS] = {
 /* --------------------- next action --------------------- | - current - */
 /* start0 --- start1 ---- intr ------ fini --- reset --- */
 { AC_START,   AC_START,	  AC_NADA,    AC_NADA, AC_RESET_I }, /* idle	 */
@@ -2356,7 +2321,7 @@ uchar_t sol11ata_ctlr_fsm_NextAction[ATA_CTLR_NSTATES][ATA_CTLR_NFUNCS] = {
 { AC_BUSY,    AC_BUSY,	  AC_INTR,    AC_FINI, AC_RESET_A }, /* active1  */
 };
 
-uchar_t sol11ata_ctlr_fsm_NextState[ATA_CTLR_NSTATES][ATA_CTLR_NFUNCS] = {
+uchar_t ata_ctlr_fsm_NextState[ATA_CTLR_NSTATES][ATA_CTLR_NFUNCS] = {
 
 /* --------------------- next state --------------------- | - current - */
 /* start0 --- start1 ---- intr ------ fini --- reset --- */
@@ -2367,11 +2332,11 @@ uchar_t sol11ata_ctlr_fsm_NextState[ATA_CTLR_NSTATES][ATA_CTLR_NFUNCS] = {
 
 
 static int
-sol11ata_ctlr_fsm(
+ata_ctlr_fsm(
 	uchar_t		 fsm_func,
-	sol11ata_ctl_t	*sol11ata_ctlp,
-	sol11ata_drv_t	*sol11ata_drvp,
-	sol11ata_pkt_t	*sol11ata_pktp,
+	ata_ctl_t	*ata_ctlp,
+	ata_drv_t	*ata_drvp,
+	ata_pkt_t	*ata_pktp,
 	int		*DoneFlgp)
 {
 	uchar_t	   action;
@@ -2379,14 +2344,14 @@ sol11ata_ctlr_fsm(
 	uchar_t	   next_state;
 	int	   rc;
 
-	current_state = sol11ata_ctlp->ac_state;
-	action = sol11ata_ctlr_fsm_NextAction[current_state][fsm_func];
-	next_state = sol11ata_ctlr_fsm_NextState[current_state][fsm_func];
+	current_state = ata_ctlp->ac_state;
+	action = ata_ctlr_fsm_NextAction[current_state][fsm_func];
+	next_state = ata_ctlr_fsm_NextState[current_state][fsm_func];
 
 	/*
 	 * Set the controller's new state
 	 */
-	sol11ata_ctlp->ac_state = next_state;
+	ata_ctlp->ac_state = next_state;
 	switch (action) {
 
 	case AC_BUSY:
@@ -2396,61 +2361,61 @@ sol11ata_ctlr_fsm(
 		return (ATA_FSM_RC_OKAY);
 
 	case AC_START:
-		ASSERT(sol11ata_ctlp->ac_active_pktp == NULL);
-		ASSERT(sol11ata_ctlp->ac_active_drvp == NULL);
+		ASSERT(ata_ctlp->ac_active_pktp == NULL);
+		ASSERT(ata_ctlp->ac_active_drvp == NULL);
 
-		sol11ata_ctlp->ac_active_pktp = sol11ata_pktp;
-		sol11ata_ctlp->ac_active_drvp = sol11ata_drvp;
+		ata_ctlp->ac_active_pktp = ata_pktp;
+		ata_ctlp->ac_active_drvp = ata_drvp;
 
-		rc = (*sol11ata_pktp->ap_start)(sol11ata_ctlp, sol11ata_drvp, sol11ata_pktp);
+		rc = (*ata_pktp->ap_start)(ata_ctlp, ata_drvp, ata_pktp);
 
 		if (rc == ATA_FSM_RC_BUSY) {
 			/* the request didn't start, GHD will requeue it */
-			sol11ata_ctlp->ac_state = AS_IDLE;
-			sol11ata_ctlp->ac_active_pktp = NULL;
-			sol11ata_ctlp->ac_active_drvp = NULL;
+			ata_ctlp->ac_state = AS_IDLE;
+			ata_ctlp->ac_active_pktp = NULL;
+			ata_ctlp->ac_active_drvp = NULL;
 		}
 		return (rc);
 
 	case AC_INTR:
-		ASSERT(sol11ata_ctlp->ac_active_pktp != NULL);
-		ASSERT(sol11ata_ctlp->ac_active_drvp != NULL);
+		ASSERT(ata_ctlp->ac_active_pktp != NULL);
+		ASSERT(ata_ctlp->ac_active_drvp != NULL);
 
-		sol11ata_drvp = sol11ata_ctlp->ac_active_drvp;
-		sol11ata_pktp = sol11ata_ctlp->ac_active_pktp;
-		return ((*sol11ata_pktp->ap_intr)(sol11ata_ctlp, sol11ata_drvp, sol11ata_pktp));
+		ata_drvp = ata_ctlp->ac_active_drvp;
+		ata_pktp = ata_ctlp->ac_active_pktp;
+		return ((*ata_pktp->ap_intr)(ata_ctlp, ata_drvp, ata_pktp));
 
 	case AC_RESET_A: /* Reset, controller active */
-		ASSERT(sol11ata_ctlp->ac_active_pktp != NULL);
-		ASSERT(sol11ata_ctlp->ac_active_drvp != NULL);
+		ASSERT(ata_ctlp->ac_active_pktp != NULL);
+		ASSERT(ata_ctlp->ac_active_drvp != NULL);
 
 		/* clean up the active request */
-		sol11ata_pktp = sol11ata_ctlp->ac_active_pktp;
-		sol11ata_pktp->ap_flags |= AP_DEV_RESET | AP_BUS_RESET;
+		ata_pktp = ata_ctlp->ac_active_pktp;
+		ata_pktp->ap_flags |= AP_DEV_RESET | AP_BUS_RESET;
 
 		/* halt the DMA engine */
-		if (sol11ata_pktp->ap_pciide_dma) {
-			sol11ata_pciide_dma_stop(sol11ata_ctlp);
-			(void) sol11ata_pciide_status_clear(sol11ata_ctlp);
+		if (ata_pktp->ap_pciide_dma) {
+			ata_pciide_dma_stop(ata_ctlp);
+			(void) ata_pciide_status_clear(ata_ctlp);
 		}
 
 		/* Do a Software Reset to unwedge the bus */
-		if (!sol11ata_software_reset(sol11ata_ctlp)) {
+		if (!ata_software_reset(ata_ctlp)) {
 			return (ATA_FSM_RC_BUSY);
 		}
 
 		/* Then send a DEVICE RESET cmd to each ATAPI device */
-		sol11atapi_fsm_reset(sol11ata_ctlp);
+		atapi_fsm_reset(ata_ctlp);
 		return (ATA_FSM_RC_FINI);
 
 	case AC_RESET_I: /* Reset, controller idle */
 		/* Do a Software Reset to unwedge the bus */
-		if (!sol11ata_software_reset(sol11ata_ctlp)) {
+		if (!ata_software_reset(ata_ctlp)) {
 			return (ATA_FSM_RC_BUSY);
 		}
 
 		/* Then send a DEVICE RESET cmd to each ATAPI device */
-		sol11atapi_fsm_reset(sol11ata_ctlp);
+		atapi_fsm_reset(ata_ctlp);
 		return (ATA_FSM_RC_OKAY);
 
 	case AC_FINI:
@@ -2462,32 +2427,32 @@ sol11ata_ctlr_fsm(
 	 */
 
 	ASSERT(action == AC_FINI);
-	ASSERT(sol11ata_ctlp->ac_active_pktp != NULL);
-	ASSERT(sol11ata_ctlp->ac_active_drvp != NULL);
+	ASSERT(ata_ctlp->ac_active_pktp != NULL);
+	ASSERT(ata_ctlp->ac_active_drvp != NULL);
 
 	/*
 	 * The active request is done now.
 	 * Disconnect the request from the controller and
 	 * add it to the done queue.
 	 */
-	sol11ata_drvp = sol11ata_ctlp->ac_active_drvp;
-	sol11ata_pktp = sol11ata_ctlp->ac_active_pktp;
+	ata_drvp = ata_ctlp->ac_active_drvp;
+	ata_pktp = ata_ctlp->ac_active_pktp;
 
 	/*
 	 * If ARQ pkt is done, get ptr to original pkt and wrap it up.
 	 */
-	if (sol11ata_pktp == sol11ata_ctlp->ac_arq_pktp) {
-		sol11ata_pkt_t *arq_pktp;
+	if (ata_pktp == ata_ctlp->ac_arq_pktp) {
+		ata_pkt_t *arq_pktp;
 
-		ADBG_ARQ(("sol11ata_ctlr_fsm 0x%p ARQ done\n", sol11ata_ctlp));
+		ADBG_ARQ(("ata_ctlr_fsm 0x%p ARQ done\n", ata_ctlp));
 
-		arq_pktp = sol11ata_pktp;
-		sol11ata_pktp = sol11ata_ctlp->ac_fault_pktp;
-		sol11ata_ctlp->ac_fault_pktp = NULL;
+		arq_pktp = ata_pktp;
+		ata_pktp = ata_ctlp->ac_fault_pktp;
+		ata_ctlp->ac_fault_pktp = NULL;
 		if (arq_pktp->ap_flags & (AP_ERROR | AP_BUS_RESET))
-			sol11ata_pktp->ap_flags |= AP_ARQ_ERROR;
+			ata_pktp->ap_flags |= AP_ARQ_ERROR;
 		else
-			sol11ata_pktp->ap_flags |= AP_ARQ_OKAY;
+			ata_pktp->ap_flags |= AP_ARQ_OKAY;
 		goto all_done;
 	}
 
@@ -2497,26 +2462,26 @@ sol11ata_ctlr_fsm(
 	/*
 	 * Start ARQ pkt if necessary
 	 */
-	if ((sol11ata_pktp->ap_flags & AP_ARQ_NEEDED) == AP_ARQ_NEEDED &&
-			(sol11ata_pktp->ap_status & ATS_ERR)) {
+	if ((ata_pktp->ap_flags & AP_ARQ_NEEDED) == AP_ARQ_NEEDED &&
+			(ata_pktp->ap_status & ATS_ERR)) {
 
 		/* set controller state back to active */
-		sol11ata_ctlp->ac_state = current_state;
+		ata_ctlp->ac_state = current_state;
 
 		/* try to start the ARQ pkt */
-		rc = sol11ata_start_arq(sol11ata_ctlp, sol11ata_drvp, sol11ata_pktp);
+		rc = ata_start_arq(ata_ctlp, ata_drvp, ata_pktp);
 
 		if (rc == ATA_FSM_RC_BUSY) {
-			ADBG_ARQ(("sol11ata_ctlr_fsm 0x%p ARQ BUSY\n", sol11ata_ctlp));
+			ADBG_ARQ(("ata_ctlr_fsm 0x%p ARQ BUSY\n", ata_ctlp));
 			/* let the target driver handle the problem */
-			sol11ata_ctlp->ac_state = AS_IDLE;
-			sol11ata_ctlp->ac_active_pktp = NULL;
-			sol11ata_ctlp->ac_active_drvp = NULL;
-			sol11ata_ctlp->ac_fault_pktp = NULL;
+			ata_ctlp->ac_state = AS_IDLE;
+			ata_ctlp->ac_active_pktp = NULL;
+			ata_ctlp->ac_active_drvp = NULL;
+			ata_ctlp->ac_fault_pktp = NULL;
 			goto all_done;
 		}
 
-		ADBG_ARQ(("sol11ata_ctlr_fsm 0x%p ARQ started\n", sol11ata_ctlp));
+		ADBG_ARQ(("ata_ctlr_fsm 0x%p ARQ started\n", ata_ctlp));
 		return (rc);
 	}
 
@@ -2530,10 +2495,10 @@ all_done:
 	/*
 	 * wrap everything up and tie a ribbon around it
 	 */
-	sol11ata_ctlp->ac_active_pktp = NULL;
-	sol11ata_ctlp->ac_active_drvp = NULL;
-	if (APKT2GCMD(sol11ata_pktp) != (gcmd_t *)0) {
-		sol11ghd_complete(&sol11ata_ctlp->ac_ccc, APKT2GCMD(sol11ata_pktp));
+	ata_ctlp->ac_active_pktp = NULL;
+	ata_ctlp->ac_active_drvp = NULL;
+	if (APKT2GCMD(ata_pktp) != (gcmd_t *)0) {
+		ghd_complete(&ata_ctlp->ac_ccc, APKT2GCMD(ata_pktp));
 		if (DoneFlgp)
 			*DoneFlgp = TRUE;
 	}
@@ -2543,16 +2508,16 @@ all_done:
 
 
 static int
-sol11ata_start_arq(
-	sol11ata_ctl_t *sol11ata_ctlp,
-	sol11ata_drv_t *sol11ata_drvp,
-	sol11ata_pkt_t *sol11ata_pktp)
+ata_start_arq(
+	ata_ctl_t *ata_ctlp,
+	ata_drv_t *ata_drvp,
+	ata_pkt_t *ata_pktp)
 {
-	sol11ata_pkt_t		*arq_pktp;
+	ata_pkt_t		*arq_pktp;
 	int			 bytes;
 	uint_t			 senselen;
 
-	ADBG_ARQ(("sol11ata_start_arq 0x%p ARQ needed\n", sol11ata_ctlp));
+	ADBG_ARQ(("ata_start_arq 0x%p ARQ needed\n", ata_ctlp));
 
 	/*
 	 * Determine just the size of the Request Sense Data buffer within
@@ -2560,28 +2525,28 @@ sol11ata_start_arq(
 	 */
 #define	SIZEOF_ARQ_HEADER	(sizeof (struct scsi_arq_status)	\
 				- sizeof (struct scsi_extended_sense))
-	senselen = sol11ata_pktp->ap_statuslen - SIZEOF_ARQ_HEADER;
+	senselen = ata_pktp->ap_statuslen - SIZEOF_ARQ_HEADER;
 	ASSERT(senselen > 0);
 
 
 	/* save ptr to original pkt */
-	sol11ata_ctlp->ac_fault_pktp = sol11ata_pktp;
+	ata_ctlp->ac_fault_pktp = ata_pktp;
 
 	/* switch the controller's active pkt to the ARQ pkt */
-	arq_pktp = sol11ata_ctlp->ac_arq_pktp;
-	sol11ata_ctlp->ac_active_pktp = arq_pktp;
+	arq_pktp = ata_ctlp->ac_arq_pktp;
+	ata_ctlp->ac_active_pktp = arq_pktp;
 
 	/* finish initializing the ARQ CDB */
-	sol11ata_ctlp->ac_arq_cdb[1] = sol11ata_drvp->ad_lun << 4;
-	sol11ata_ctlp->ac_arq_cdb[4] = senselen;
+	ata_ctlp->ac_arq_cdb[1] = ata_drvp->ad_lun << 4;
+	ata_ctlp->ac_arq_cdb[4] = senselen;
 
 	/* finish initializing the ARQ pkt */
-	arq_pktp->ap_v_addr = (caddr_t)&sol11ata_pktp->ap_scbp->sts_sensedata;
+	arq_pktp->ap_v_addr = (caddr_t)&ata_pktp->ap_scbp->sts_sensedata;
 
 	arq_pktp->ap_resid = senselen;
 	arq_pktp->ap_flags = AP_ATAPI | AP_READ;
 	arq_pktp->ap_cdb_pad =
-	((unsigned)(sol11ata_drvp->ad_cdb_len - arq_pktp->ap_cdb_len)) >> 1;
+	((unsigned)(ata_drvp->ad_cdb_len - arq_pktp->ap_cdb_len)) >> 1;
 
 	bytes = min(senselen, ATAPI_MAX_BYTES_PER_DRQ);
 	arq_pktp->ap_hicyl = (uchar_t)(bytes >> 8);
@@ -2591,10 +2556,10 @@ sol11ata_start_arq(
 	 * This packet is shared by all drives on this controller
 	 * therefore we need to init the drive number on every ARQ.
 	 */
-	arq_pktp->ap_hd = sol11ata_drvp->ad_drive_bits;
+	arq_pktp->ap_hd = ata_drvp->ad_drive_bits;
 
 	/* start it up */
-	return ((*arq_pktp->ap_start)(sol11ata_ctlp, sol11ata_drvp, arq_pktp));
+	return ((*arq_pktp->ap_start)(ata_ctlp, ata_drvp, arq_pktp));
 }
 
 /*
@@ -2604,8 +2569,8 @@ sol11ata_start_arq(
  */
 
 static int
-sol11ata_reset_bus(
-	sol11ata_ctl_t *sol11ata_ctlp)
+ata_reset_bus(
+	ata_ctl_t *ata_ctlp)
 {
 	int	watchdog;
 	uchar_t	drive;
@@ -2618,8 +2583,8 @@ sol11ata_reset_bus(
 	 * ATAPI DEVICE RESET to each ATAPI drive.
 	 */
 	fsm_func = ATA_FSM_RESET;
-	for (watchdog = sol11ata_reset_bus_watchdog; watchdog > 0; watchdog--) {
-		switch (sol11ata_ctlr_fsm(fsm_func, sol11ata_ctlp, NULL, NULL,
+	for (watchdog = ata_reset_bus_watchdog; watchdog > 0; watchdog--) {
+		switch (ata_ctlr_fsm(fsm_func, ata_ctlp, NULL, NULL,
 						&DoneFlg)) {
 		case ATA_FSM_RC_OKAY:
 			rc = TRUE;
@@ -2639,7 +2604,7 @@ sol11ata_reset_bus(
 			continue;
 		}
 	}
-	ADBG_WARN(("sol11ata_reset_bus: watchdog\n"));
+	ADBG_WARN(("ata_reset_bus: watchdog\n"));
 
 fsm_done:
 
@@ -2647,23 +2612,23 @@ fsm_done:
 	 * Reinitialize the ATA drives
 	 */
 	for (drive = 0; drive < ATA_MAXTARG; drive++) {
-		sol11ata_drv_t *sol11ata_drvp;
+		ata_drv_t *ata_drvp;
 
-		if ((sol11ata_drvp = CTL2DRV(sol11ata_ctlp, drive, 0)) == NULL)
+		if ((ata_drvp = CTL2DRV(ata_ctlp, drive, 0)) == NULL)
 			continue;
 
-		if (ATAPIDRV(sol11ata_drvp))
+		if (ATAPIDRV(ata_drvp))
 			continue;
 
 		/*
 		 * Reprogram the Read/Write Multiple block factor
 		 * and current geometry into the drive.
 		 */
-		if (!sol11ata_disk_setup_parms(sol11ata_ctlp, sol11ata_drvp))
+		if (!ata_disk_setup_parms(ata_ctlp, ata_drvp))
 			rc = FALSE;
 	}
 
-	/* If DoneFlg is TRUE, it means that sol11ghd_complete() function */
+	/* If DoneFlg is TRUE, it means that ghd_complete() function */
 	/* has been already called. In this case ignore any errors and */
 	/* return TRUE to the caller, otherwise return the value of rc */
 	/* to the caller */
@@ -2681,23 +2646,23 @@ fsm_done:
  */
 
 static int
-sol11ata_software_reset(
-	sol11ata_ctl_t *sol11ata_ctlp)
+ata_software_reset(
+	ata_ctl_t *ata_ctlp)
 {
-	ddi_acc_handle_t io_hdl1 = sol11ata_ctlp->ac_iohandle1;
-	ddi_acc_handle_t io_hdl2 = sol11ata_ctlp->ac_iohandle2;
+	ddi_acc_handle_t io_hdl1 = ata_ctlp->ac_iohandle1;
+	ddi_acc_handle_t io_hdl2 = ata_ctlp->ac_iohandle2;
 	int		 time_left;
 
-	ADBG_TRACE(("sol11ata_reset_bus entered\n"));
+	ADBG_TRACE(("ata_reset_bus entered\n"));
 
 	/* disable interrupts and turn the software reset bit on */
-	ddi_put8(io_hdl2, sol11ata_ctlp->ac_devctl, (ATDC_D3 | ATDC_SRST));
+	ddi_put8(io_hdl2, ata_ctlp->ac_devctl, (ATDC_D3 | ATDC_SRST));
 
 	/* why 30 milliseconds, the ATA/ATAPI-4 spec says 5 usec. */
 	drv_usecwait(30000);
 
 	/* turn the software reset bit back off */
-	ddi_put8(io_hdl2, sol11ata_ctlp->ac_devctl, ATDC_D3);
+	ddi_put8(io_hdl2, ata_ctlp->ac_devctl, ATDC_D3);
 
 	/*
 	 * Wait for the controller to assert BUSY status.
@@ -2712,11 +2677,11 @@ sol11ata_software_reset(
 	 * If drive 0 exists the test for completion is simple
 	 */
 	time_left = 31 * 1000000;
-	if (CTL2DRV(sol11ata_ctlp, 0, 0)) {
+	if (CTL2DRV(ata_ctlp, 0, 0)) {
 		goto wait_for_not_busy;
 	}
 
-	ASSERT(CTL2DRV(sol11ata_ctlp, 1, 0) != NULL);
+	ASSERT(CTL2DRV(ata_ctlp, 1, 0) != NULL);
 
 	/*
 	 * This must be a single device configuration, with drive 1
@@ -2742,16 +2707,16 @@ sol11ata_software_reset(
 		/*
 		 * try to select drive 1
 		 */
-		ddi_put8(io_hdl1, sol11ata_ctlp->ac_drvhd, ATDH_DRIVE1);
+		ddi_put8(io_hdl1, ata_ctlp->ac_drvhd, ATDH_DRIVE1);
 
-		ddi_put8(io_hdl1, sol11ata_ctlp->ac_sect, 0x55);
-		ddi_put8(io_hdl1, sol11ata_ctlp->ac_sect, 0xaa);
-		if (ddi_get8(io_hdl1, sol11ata_ctlp->ac_sect) != 0xaa)
+		ddi_put8(io_hdl1, ata_ctlp->ac_sect, 0x55);
+		ddi_put8(io_hdl1, ata_ctlp->ac_sect, 0xaa);
+		if (ddi_get8(io_hdl1, ata_ctlp->ac_sect) != 0xaa)
 			continue;
 
-		ddi_put8(io_hdl1, sol11ata_ctlp->ac_count, 0x55);
-		ddi_put8(io_hdl1, sol11ata_ctlp->ac_count, 0xaa);
-		if (ddi_get8(io_hdl1, sol11ata_ctlp->ac_count) != 0xaa)
+		ddi_put8(io_hdl1, ata_ctlp->ac_count, 0x55);
+		ddi_put8(io_hdl1, ata_ctlp->ac_count, 0xaa);
+		if (ddi_get8(io_hdl1, ata_ctlp->ac_count) != 0xaa)
 			continue;
 
 		goto wait_for_not_busy;
@@ -2763,7 +2728,7 @@ wait_for_not_busy:
 	/*
 	 * Now wait upto 31 seconds for BUSY to clear.
 	 */
-	(void) sol11ata_wait3(io_hdl2, sol11ata_ctlp->ac_ioaddr2, 0, ATS_BSY,
+	(void) ata_wait3(io_hdl2, ata_ctlp->ac_ioaddr2, 0, ATS_BSY,
 		ATS_ERR, ATS_BSY, ATS_DF, ATS_BSY, time_left);
 
 	return (TRUE);
@@ -2776,15 +2741,15 @@ wait_for_not_busy:
  */
 
 static uint_t
-sol11ata_intr(
+ata_intr(
 	caddr_t arg)
 {
-	sol11ata_ctl_t *sol11ata_ctlp;
+	ata_ctl_t *ata_ctlp;
 	int	   one_shot = 1;
 
-	sol11ata_ctlp = (sol11ata_ctl_t *)arg;
+	ata_ctlp = (ata_ctl_t *)arg;
 
-	return (sol11ghd_intr(&sol11ata_ctlp->ac_ccc, (void *)&one_shot));
+	return (ghd_intr(&ata_ctlp->ac_ccc, (void *)&one_shot));
 }
 
 
@@ -2795,31 +2760,31 @@ sol11ata_intr(
  */
 
 static int
-sol11ata_get_status(
+ata_get_status(
 	void *hba_handle,
 	void *intr_status)
 {
-	sol11ata_ctl_t *sol11ata_ctlp = (sol11ata_ctl_t *)hba_handle;
+	ata_ctl_t *ata_ctlp = (ata_ctl_t *)hba_handle;
 	uchar_t	   status;
 
-	ADBG_TRACE(("sol11ata_get_status entered\n"));
+	ADBG_TRACE(("ata_get_status entered\n"));
 
 	/*
-	 * ignore interrupts before sol11ata_attach completes
+	 * ignore interrupts before ata_attach completes
 	 */
-	if (!(sol11ata_ctlp->ac_flags & AC_ATTACHED))
+	if (!(ata_ctlp->ac_flags & AC_ATTACHED))
 		return (FALSE);
 
 	/*
 	 * can't be interrupt pending if nothing active
 	 */
-	switch (sol11ata_ctlp->ac_state) {
+	switch (ata_ctlp->ac_state) {
 	case AS_IDLE:
 		return (FALSE);
 	case AS_ACTIVE0:
 	case AS_ACTIVE1:
-		ASSERT(sol11ata_ctlp->ac_active_drvp != NULL);
-		ASSERT(sol11ata_ctlp->ac_active_pktp != NULL);
+		ASSERT(ata_ctlp->ac_active_drvp != NULL);
+		ASSERT(ata_ctlp->ac_active_pktp != NULL);
 		break;
 	}
 
@@ -2839,12 +2804,12 @@ sol11ata_get_status(
 	 * else treat it as before - as legacy device.
 	 */
 
-	if ((sol11ata_ctlp->ac_pciide) &&
-	    ((sol11ata_ctlp->ac_pciide_bm != FALSE) &&
-	    ((sol11ata_ctlp->ac_active_pktp->ap_pciide_dma == TRUE) ||
-	    !(sol11ata_ctlp->ac_flags & AC_BMSTATREG_PIO_BROKEN)))) {
+	if ((ata_ctlp->ac_pciide) &&
+	    ((ata_ctlp->ac_pciide_bm != FALSE) &&
+	    ((ata_ctlp->ac_active_pktp->ap_pciide_dma == TRUE) ||
+	    !(ata_ctlp->ac_flags & AC_BMSTATREG_PIO_BROKEN)))) {
 
-		if (!sol11ata_pciide_status_pending(sol11ata_ctlp))
+		if (!ata_pciide_status_pending(ata_ctlp))
 			return (FALSE);
 	} else {
 		/*
@@ -2867,7 +2832,7 @@ sol11ata_get_status(
 
 	/* check if device is still busy */
 
-	status = ddi_get8(sol11ata_ctlp->ac_iohandle2, sol11ata_ctlp->ac_altstatus);
+	status = ddi_get8(ata_ctlp->ac_iohandle2, ata_ctlp->ac_altstatus);
 	if (status & ATS_BSY)
 		return (FALSE);
 	return (TRUE);
@@ -2881,9 +2846,9 @@ sol11ata_get_status(
  */
 
 int
-sol11ata_get_status_clear_intr(
-	sol11ata_ctl_t *sol11ata_ctlp,
-	sol11ata_pkt_t *sol11ata_pktp)
+ata_get_status_clear_intr(
+	ata_ctl_t *ata_ctlp,
+	ata_pkt_t *ata_pktp)
 {
 	uchar_t	status;
 
@@ -2893,11 +2858,11 @@ sol11ata_get_status_clear_intr(
 	 * the DMA error latch at the same time.
 	 */
 
-	if (sol11ata_pktp->ap_pciide_dma) {
-		if (sol11ata_pciide_status_dmacheck_clear(sol11ata_ctlp))
-			sol11ata_pktp->ap_flags |= AP_ERROR | AP_TRAN_ERROR;
-	} else if ((sol11ata_ctlp->ac_pciide) &&
-	    !(sol11ata_ctlp->ac_flags & AC_BMSTATREG_PIO_BROKEN)) {
+	if (ata_pktp->ap_pciide_dma) {
+		if (ata_pciide_status_dmacheck_clear(ata_ctlp))
+			ata_pktp->ap_flags |= AP_ERROR | AP_TRAN_ERROR;
+	} else if ((ata_ctlp->ac_pciide) &&
+	    !(ata_ctlp->ac_flags & AC_BMSTATREG_PIO_BROKEN)) {
 		/*
 		 * Some requests don't use DMA mode and therefore won't
 		 * set the DMA error latch, but we still have to clear
@@ -2905,14 +2870,14 @@ sol11ata_get_status_clear_intr(
 		 * Controllers with broken BM intr in PIO mode do not go
 		 * through this path.
 		 */
-		(void) sol11ata_pciide_status_clear(sol11ata_ctlp);
+		(void) ata_pciide_status_clear(ata_ctlp);
 	}
 
 	/*
 	 * this clears the drive's interrupt
 	 */
-	status = ddi_get8(sol11ata_ctlp->ac_iohandle1, sol11ata_ctlp->ac_status);
-	ADBG_TRACE(("sol11ata_get_status_clear_intr: 0x%x\n", status));
+	status = ddi_get8(ata_ctlp->ac_iohandle1, ata_ctlp->ac_status);
+	ADBG_TRACE(("ata_get_status_clear_intr: 0x%x\n", status));
 	return (status);
 }
 
@@ -2926,24 +2891,24 @@ sol11ata_get_status_clear_intr(
 
 /* ARGSUSED */
 static void
-sol11ata_process_intr(
+ata_process_intr(
 	void *hba_handle,
 	void *intr_status)
 {
-	sol11ata_ctl_t *sol11ata_ctlp = (sol11ata_ctl_t *)hba_handle;
+	ata_ctl_t *ata_ctlp = (ata_ctl_t *)hba_handle;
 	int	   watchdog;
 	uchar_t	   fsm_func;
 	int	   rc;
 
-	ADBG_TRACE(("sol11ata_process_intr entered\n"));
+	ADBG_TRACE(("ata_process_intr entered\n"));
 
 	/*
 	 * process the ATA or ATAPI interrupt
 	 */
 
 	fsm_func = ATA_FSM_INTR;
-	for (watchdog = sol11ata_process_intr_watchdog; watchdog > 0; watchdog--) {
-		rc =  sol11ata_ctlr_fsm(fsm_func, sol11ata_ctlp, NULL, NULL, NULL);
+	for (watchdog = ata_process_intr_watchdog; watchdog > 0; watchdog--) {
+		rc =  ata_ctlr_fsm(fsm_func, ata_ctlp, NULL, NULL, NULL);
 
 		switch (rc) {
 		case ATA_FSM_RC_OKAY:
@@ -2961,7 +2926,7 @@ sol11ata_process_intr(
 			break;
 		}
 	}
-	ADBG_WARN(("sol11ata_process_intr: watchdog\n"));
+	ADBG_WARN(("ata_process_intr: watchdog\n"));
 }
 
 
@@ -2973,37 +2938,37 @@ sol11ata_process_intr(
  */
 
 static int
-sol11ata_hba_start(
+ata_hba_start(
 	void *hba_handle,
 	gcmd_t *gcmdp)
 {
-	sol11ata_ctl_t *sol11ata_ctlp;
-	sol11ata_drv_t *sol11ata_drvp;
-	sol11ata_pkt_t *sol11ata_pktp;
+	ata_ctl_t *ata_ctlp;
+	ata_drv_t *ata_drvp;
+	ata_pkt_t *ata_pktp;
 	uchar_t	   fsm_func;
 	int	   request_started;
 	int	   watchdog;
 
-	ADBG_TRACE(("sol11ata_hba_start entered\n"));
+	ADBG_TRACE(("ata_hba_start entered\n"));
 
-	sol11ata_ctlp = (sol11ata_ctl_t *)hba_handle;
+	ata_ctlp = (ata_ctl_t *)hba_handle;
 
-	if (sol11ata_ctlp->ac_active_drvp != NULL) {
-		ADBG_WARN(("sol11ata_hba_start drvp not null\n"));
+	if (ata_ctlp->ac_active_drvp != NULL) {
+		ADBG_WARN(("ata_hba_start drvp not null\n"));
 		return (FALSE);
 	}
-	if (sol11ata_ctlp->ac_active_pktp != NULL) {
-		ADBG_WARN(("sol11ata_hba_start pktp not null\n"));
+	if (ata_ctlp->ac_active_pktp != NULL) {
+		ADBG_WARN(("ata_hba_start pktp not null\n"));
 		return (FALSE);
 	}
 
-	sol11ata_pktp = GCMD2APKT(gcmdp);
-	sol11ata_drvp = GCMD2DRV(gcmdp);
+	ata_pktp = GCMD2APKT(gcmdp);
+	ata_drvp = GCMD2DRV(gcmdp);
 
 	/*
 	 * which drive?
 	 */
-	if (sol11ata_drvp->ad_targ == 0)
+	if (ata_drvp->ad_targ == 0)
 		fsm_func = ATA_FSM_START0;
 	else
 		fsm_func = ATA_FSM_START1;
@@ -3012,8 +2977,8 @@ sol11ata_hba_start(
 	 * start the request
 	 */
 	request_started = FALSE;
-	for (watchdog = sol11ata_hba_start_watchdog; watchdog > 0; watchdog--) {
-		switch (sol11ata_ctlr_fsm(fsm_func, sol11ata_ctlp, sol11ata_drvp, sol11ata_pktp,
+	for (watchdog = ata_hba_start_watchdog; watchdog > 0; watchdog--) {
+		switch (ata_ctlr_fsm(fsm_func, ata_ctlp, ata_drvp, ata_pktp,
 				NULL)) {
 		case ATA_FSM_RC_OKAY:
 			request_started = TRUE;
@@ -3031,19 +2996,19 @@ sol11ata_hba_start(
 			 */
 			request_started = TRUE;
 			fsm_func = ATA_FSM_INTR;
-			sol11ata_drvp = NULL;
-			sol11ata_pktp = NULL;
+			ata_drvp = NULL;
+			ata_pktp = NULL;
 			break;
 
 		case ATA_FSM_RC_FINI: /* move request to the done queue */
 			request_started = TRUE;
 			fsm_func = ATA_FSM_FINI;
-			sol11ata_drvp = NULL;
-			sol11ata_pktp = NULL;
+			ata_drvp = NULL;
+			ata_pktp = NULL;
 			break;
 		}
 	}
-	ADBG_WARN(("sol11ata_hba_start: watchdog\n"));
+	ADBG_WARN(("ata_hba_start: watchdog\n"));
 
 fsm_done:
 	return (request_started);
@@ -3051,7 +3016,7 @@ fsm_done:
 }
 
 static int
-sol11ata_check_pciide_blacklist(
+ata_check_pciide_blacklist(
 	dev_info_t *dip,
 	uint_t flags)
 {
@@ -3105,7 +3070,7 @@ sol11ata_check_pciide_blacklist(
 	/*
 	 * then check the built-in blacklist
 	 */
-	for (blp = sol11ata_pciide_blacklist; blp->b_vendorid; blp++) {
+	for (blp = ata_pciide_blacklist; blp->b_vendorid; blp++) {
 		if ((vendorid & blp->b_vmask) != blp->b_vendorid)
 			continue;
 		if ((deviceid & blp->b_dmask) != blp->b_deviceid)
@@ -3118,14 +3083,14 @@ sol11ata_check_pciide_blacklist(
 }
 
 int
-sol11ata_check_drive_blacklist(
-	struct sol11ata_id *aidp,
+ata_check_drive_blacklist(
+	struct ata_id *aidp,
 	uint_t flags)
 {
-	sol11atabl_t	*blp;
+	atabl_t	*blp;
 
-	for (blp = sol11ata_drive_blacklist; blp->b_model; blp++) {
-		if (!sol11ata_strncmp(blp->b_model, aidp->ai_model,
+	for (blp = ata_drive_blacklist; blp->b_model; blp++) {
+		if (!ata_strncmp(blp->b_model, aidp->ai_model,
 				sizeof (aidp->ai_model)))
 			continue;
 		if (blp->b_flags & flags)
@@ -3143,42 +3108,42 @@ sol11ata_check_drive_blacklist(
  */
 
 int
-sol11ata_queue_cmd(
-	int	  (*func)(sol11ata_ctl_t *, sol11ata_drv_t *, sol11ata_pkt_t *),
+ata_queue_cmd(
+	int	  (*func)(ata_ctl_t *, ata_drv_t *, ata_pkt_t *),
 	void	  *arg,
-	sol11ata_ctl_t *sol11ata_ctlp,
-	sol11ata_drv_t *sol11ata_drvp,
+	ata_ctl_t *ata_ctlp,
+	ata_drv_t *ata_drvp,
 	gtgt_t	  *gtgtp)
 {
-	sol11ata_pkt_t	*sol11ata_pktp;
+	ata_pkt_t	*ata_pktp;
 	gcmd_t		*gcmdp;
 	int		 rc;
 
-	if (!(gcmdp = sol11ghd_gcmd_alloc(gtgtp, sizeof (*sol11ata_pktp), TRUE))) {
-		ADBG_ERROR(("sol11atapi_id_update alloc failed\n"));
+	if (!(gcmdp = ghd_gcmd_alloc(gtgtp, sizeof (*ata_pktp), TRUE))) {
+		ADBG_ERROR(("atapi_id_update alloc failed\n"));
 		return (FALSE);
 	}
 
 
-	/* set the back ptr from the sol11ata_pkt to the gcmd_t */
-	sol11ata_pktp = GCMD2APKT(gcmdp);
-	sol11ata_pktp->ap_gcmdp = gcmdp;
-	sol11ata_pktp->ap_hd = sol11ata_drvp->ad_drive_bits;
-	sol11ata_pktp->ap_bytes_per_block = sol11ata_drvp->ad_bytes_per_block;
+	/* set the back ptr from the ata_pkt to the gcmd_t */
+	ata_pktp = GCMD2APKT(gcmdp);
+	ata_pktp->ap_gcmdp = gcmdp;
+	ata_pktp->ap_hd = ata_drvp->ad_drive_bits;
+	ata_pktp->ap_bytes_per_block = ata_drvp->ad_bytes_per_block;
 
 	/*
 	 * over-ride the default start function
 	 */
-	sol11ata_pktp = GCMD2APKT(gcmdp);
-	sol11ata_pktp->ap_start = func;
-	sol11ata_pktp->ap_complete = NULL;
-	sol11ata_pktp->ap_v_addr = (caddr_t)arg;
+	ata_pktp = GCMD2APKT(gcmdp);
+	ata_pktp->ap_start = func;
+	ata_pktp->ap_complete = NULL;
+	ata_pktp->ap_v_addr = (caddr_t)arg;
 
 	/*
 	 * add it to the queue, when it gets to the front the
 	 * ap_start function is called.
 	 */
-	rc = sol11ghd_transport(&sol11ata_ctlp->ac_ccc, gcmdp, gcmdp->cmd_gtgtp,
+	rc = ghd_transport(&ata_ctlp->ac_ccc, gcmdp, gcmdp->cmd_gtgtp,
 		0, TRUE, NULL);
 
 	if (rc != TRAN_ACCEPT) {
@@ -3186,7 +3151,7 @@ sol11ata_queue_cmd(
 		return (FALSE);
 	}
 
-	if (sol11ata_pktp->ap_flags & AP_ERROR)
+	if (ata_pktp->ap_flags & AP_ERROR)
 		return (FALSE);
 	return (TRUE);
 }
@@ -3194,7 +3159,7 @@ sol11ata_queue_cmd(
 /*
  * Check if this drive has the "revert to defaults" bug
  * PSARC 2001/500 and 2001/xxx - check for the properties
- * sol11ata-revert-to-defaults and sol11atarvrt-<diskmodel> before
+ * ata-revert-to-defaults and atarvrt-<diskmodel> before
  * examining the blacklist.
  * <diskmodel> is made from the model number reported by Identify Drive
  * with uppercase letters converted to lowercase and all characters
@@ -3211,25 +3176,25 @@ sol11ata_queue_cmd(
  * Correctly working BIOS would therefore reprogram either the drive
  * and/or the host controller to match transfer modes.
  * Devices with ATA_BL_NORVRT flag will be removed from
- * the sol11ata_blacklist.
+ * the ata_blacklist.
  * The default behaviour will be - no revert to power-on defaults
  * for all devices. The property is retained in case the user
  * explicitly requests revert-to-defaults before reboot.
  */
 
 #define	ATA_REVERT_PROP_PREFIX "revert-"
-#define	ATA_REVERT_PROP_GLOBAL	"sol11ata-revert-to-defaults"
+#define	ATA_REVERT_PROP_GLOBAL	"ata-revert-to-defaults"
 /* room for prefix + model number + terminating NUL character */
 #define	PROP_BUF_SIZE	(sizeof (ATA_REVERT_PROP_PREFIX) + \
 				sizeof (aidp->ai_model) + 1)
 #define	PROP_LEN_MAX	(31)
 
 static int
-sol11ata_check_revert_to_defaults(
-	sol11ata_drv_t *sol11ata_drvp)
+ata_check_revert_to_defaults(
+	ata_drv_t *ata_drvp)
 {
-	struct sol11ata_id	*aidp = &sol11ata_drvp->ad_id;
-	sol11ata_ctl_t	*sol11ata_ctlp = sol11ata_drvp->ad_ctlp;
+	struct ata_id	*aidp = &ata_drvp->ad_id;
+	ata_ctl_t	*ata_ctlp = ata_drvp->ad_ctlp;
 	char	 prop_buf[PROP_BUF_SIZE];
 	int	 i, j;
 	int	 propval;
@@ -3256,7 +3221,7 @@ sol11ata_check_revert_to_defaults(
 	prop_buf[j] = '\0';
 
 	/* look for a disk-specific "revert" property" */
-	propval = ddi_getprop(DDI_DEV_T_ANY, sol11ata_ctlp->ac_dip,
+	propval = ddi_getprop(DDI_DEV_T_ANY, ata_ctlp->ac_dip,
 		DDI_PROP_DONTPASS, prop_buf, -1);
 	if (propval == 0)
 		return (FALSE);
@@ -3264,7 +3229,7 @@ sol11ata_check_revert_to_defaults(
 		return (TRUE);
 
 	/* look for a global "revert" property" */
-	propval = ddi_getprop(DDI_DEV_T_ANY, sol11ata_ctlp->ac_dip,
+	propval = ddi_getprop(DDI_DEV_T_ANY, ata_ctlp->ac_dip,
 		0, ATA_REVERT_PROP_GLOBAL, -1);
 	if (propval == 0)
 		return (FALSE);
@@ -3275,36 +3240,36 @@ sol11ata_check_revert_to_defaults(
 }
 
 void
-sol11ata_show_transfer_mode(sol11ata_ctl_t *sol11ata_ctlp, sol11ata_drv_t *sol11ata_drvp)
+ata_show_transfer_mode(ata_ctl_t *ata_ctlp, ata_drv_t *ata_drvp)
 {
 	int i;
 
-	if (sol11ata_ctlp->ac_pciide_bm == FALSE ||
-	    sol11ata_drvp->ad_pciide_dma != ATA_DMA_ON) {
-		if (sol11ata_cntrl_DMA_sel_msg) {
+	if (ata_ctlp->ac_pciide_bm == FALSE ||
+	    ata_drvp->ad_pciide_dma != ATA_DMA_ON) {
+		if (ata_cntrl_DMA_sel_msg) {
 			ATAPRT((
-			    "?\tATA DMA off: %s\n", sol11ata_cntrl_DMA_sel_msg));
-		} else if (sol11ata_dev_DMA_sel_msg) {
-			ATAPRT(("?\tATA DMA off: %s\n", sol11ata_dev_DMA_sel_msg));
+			    "?\tATA DMA off: %s\n", ata_cntrl_DMA_sel_msg));
+		} else if (ata_dev_DMA_sel_msg) {
+			ATAPRT(("?\tATA DMA off: %s\n", ata_dev_DMA_sel_msg));
 		}
 		ATAPRT(("?\tPIO mode %d selected\n",
-		    (sol11ata_drvp->ad_id.ai_advpiomode & ATAC_ADVPIO_4_SUP) ==
+		    (ata_drvp->ad_id.ai_advpiomode & ATAC_ADVPIO_4_SUP) ==
 			ATAC_ADVPIO_4_SUP ? 4 : 3));
 	} else {
 		/* Using DMA */
-		if (sol11ata_drvp->ad_id.ai_dworddma & ATAC_MDMA_SEL_MASK) {
+		if (ata_drvp->ad_id.ai_dworddma & ATAC_MDMA_SEL_MASK) {
 			/*
 			 * Rely on the fact that either dwdma or udma is
 			 * selected, not both.
 			 */
 			ATAPRT(("?\tMultiwordDMA mode %d selected\n",
-			(sol11ata_drvp->ad_id.ai_dworddma & ATAC_MDMA_2_SEL) ==
+			(ata_drvp->ad_id.ai_dworddma & ATAC_MDMA_2_SEL) ==
 			    ATAC_MDMA_2_SEL ? 2 :
-			    (sol11ata_drvp->ad_id.ai_dworddma & ATAC_MDMA_1_SEL) ==
+			    (ata_drvp->ad_id.ai_dworddma & ATAC_MDMA_1_SEL) ==
 				ATAC_MDMA_1_SEL ? 1 : 0));
 		} else {
 			for (i = 0; i <= 6; i++) {
-				if (sol11ata_drvp->ad_id.ai_ultradma &
+				if (ata_drvp->ad_id.ai_ultradma &
 				    (1 << (i + 8))) {
 					ATAPRT((
 					    "?\tUltraDMA mode %d selected\n",
@@ -3320,24 +3285,24 @@ sol11ata_show_transfer_mode(sol11ata_ctl_t *sol11ata_ctlp, sol11ata_drv_t *sol11
  * Controller-specific operation pointers.
  * Should be extended as needed - init only for now
  */
-struct sol11ata_ctl_spec_ops {
+struct ata_ctl_spec_ops {
 	uint_t	(*cs_init)(dev_info_t *, ushort_t, ushort_t); /* ctlr init */
 };
 
 
-struct sol11ata_ctl_spec {
+struct ata_ctl_spec {
 	ushort_t		cs_vendor_id;
 	ushort_t		cs_device_id;
-	struct sol11ata_ctl_spec_ops	*cs_ops;
+	struct ata_ctl_spec_ops	*cs_ops;
 };
 
 /* Sil3XXX-specific functions (init only for now) */
-struct sol11ata_ctl_spec_ops sil3xxx_ops = {
+struct ata_ctl_spec_ops sil3xxx_ops = {
 	&sil3xxx_init_controller	/* Sil3XXX cntrl initialization */
 };
 
 
-struct sol11ata_ctl_spec sol11ata_cntrls_spec[] = {
+struct ata_ctl_spec ata_cntrls_spec[] = {
 	{0x1095, 0x3114, &sil3xxx_ops},
 	{0x1095, 0x3512, &sil3xxx_ops},
 	{0x1095, 0x3112, &sil3xxx_ops},
@@ -3350,11 +3315,11 @@ struct sol11ata_ctl_spec sol11ata_cntrls_spec[] = {
  */
 
 int
-sol11ata_spec_init_controller(dev_info_t *dip)
+ata_spec_init_controller(dev_info_t *dip)
 {
 	ushort_t		vendor_id;
 	ushort_t		device_id;
-	struct sol11ata_ctl_spec	*ctlsp;
+	struct ata_ctl_spec	*ctlsp;
 
 	vendor_id = ddi_prop_get_int(DDI_DEV_T_ANY, ddi_get_parent(dip),
 				    DDI_PROP_DONTPASS, "vendor-id", 0);
@@ -3362,7 +3327,7 @@ sol11ata_spec_init_controller(dev_info_t *dip)
 				    DDI_PROP_DONTPASS, "device-id", 0);
 
 	/* Locate controller specific ops, if they exist */
-	ctlsp = sol11ata_cntrls_spec;
+	ctlsp = ata_cntrls_spec;
 	while (ctlsp->cs_ops != NULL) {
 		if (ctlsp->cs_vendor_id == vendor_id &&
 		    ctlsp->cs_device_id == device_id)
@@ -3393,7 +3358,7 @@ sol11ata_spec_init_controller(dev_info_t *dip)
  * If the property is not found, the default value is returned.
  */
 static int
-sol11ata_prop_lookup_int(dev_t match_dev, dev_info_t *dip,
+ata_prop_lookup_int(dev_t match_dev, dev_info_t *dip,
 	uint_t flags, char *name, int defvalue)
 {
 

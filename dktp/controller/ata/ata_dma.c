@@ -44,7 +44,7 @@
  * DMA attributes for device I/O
  */
 
-ddi_dma_attr_t sol11ata_pciide_dma_attr = {
+ddi_dma_attr_t ata_pciide_dma_attr = {
 	DMA_ATTR_V0,		/* dma_attr_version */
 	0,			/* dma_attr_addr_lo */
 	0xffffffffU,		/* dma_attr_addr_hi */
@@ -77,7 +77,7 @@ ddi_dma_attr_t sol11ata_pciide_dma_attr = {
 
 #define	PCIIDE_BOUNDARY	(0x1000)
 
-ddi_dma_attr_t sol11ata_prd_dma_attr = {
+ddi_dma_attr_t ata_prd_dma_attr = {
 	DMA_ATTR_V0,		/* dma_attr_version */
 	0,			/* dma_attr_addr_lo */
 	0xffffffffU,		/* dma_attr_addr_hi */
@@ -94,12 +94,12 @@ ddi_dma_attr_t sol11ata_prd_dma_attr = {
 
 
 
-size_t	prd_size = sizeof (prde_t) * ATA_DMA_NSEGS;
+static size_t prd_size = sizeof (prde_t) * ATA_DMA_NSEGS;
 
 int
-sol11ata_pciide_alloc(
+ata_pciide_alloc(
 	dev_info_t *dip,
-	sol11ata_ctl_t *sol11ata_ctlp)
+	ata_ctl_t *ata_ctlp)
 {
 	ddi_device_acc_attr_t	dev_attr;
 	ddi_dma_cookie_t	cookie;
@@ -112,30 +112,30 @@ sol11ata_pciide_alloc(
 	dev_attr.devacc_attr_dataorder = DDI_STRICTORDER_ACC;
 
 
-	rc = ddi_dma_alloc_handle(dip, &sol11ata_prd_dma_attr, DDI_DMA_SLEEP, NULL,
-		&sol11ata_ctlp->ac_sg_handle);
+	rc = ddi_dma_alloc_handle(dip, &ata_prd_dma_attr, DDI_DMA_SLEEP, NULL,
+		&ata_ctlp->ac_sg_handle);
 	if (rc != DDI_SUCCESS) {
-		ADBG_ERROR(("sol11ata_pciide_alloc 0x%p handle %d\n",
-		    (void *)sol11ata_ctlp, rc));
+		ADBG_ERROR(("ata_pciide_alloc 0x%p handle %d\n",
+		    (void *)ata_ctlp, rc));
 		goto err3;
 	}
 
-	rc = ddi_dma_mem_alloc(sol11ata_ctlp->ac_sg_handle, prd_size, &dev_attr,
+	rc = ddi_dma_mem_alloc(ata_ctlp->ac_sg_handle, prd_size, &dev_attr,
 	    DDI_DMA_CONSISTENT, DDI_DMA_SLEEP, NULL,
-	    &sol11ata_ctlp->ac_sg_list, &buf_size, &sol11ata_ctlp->ac_sg_acc_handle);
+	    &ata_ctlp->ac_sg_list, &buf_size, &ata_ctlp->ac_sg_acc_handle);
 	if (rc != DDI_SUCCESS) {
-		ADBG_ERROR(("sol11ata_pciide_alloc 0x%p mem %d\n",
-		    (void *)sol11ata_ctlp, rc));
+		ADBG_ERROR(("ata_pciide_alloc 0x%p mem %d\n",
+		    (void *)ata_ctlp, rc));
 		goto err2;
 	}
 
-	rc = ddi_dma_addr_bind_handle(sol11ata_ctlp->ac_sg_handle, NULL,
-	    sol11ata_ctlp->ac_sg_list, buf_size,
+	rc = ddi_dma_addr_bind_handle(ata_ctlp->ac_sg_handle, NULL,
+	    ata_ctlp->ac_sg_list, buf_size,
 	    DDI_DMA_WRITE | DDI_DMA_CONSISTENT,
 	    DDI_DMA_SLEEP, NULL, &cookie, &count);
 	if (rc != DDI_DMA_MAPPED) {
-		ADBG_ERROR(("sol11ata_pciide_alloc 0x%p bind %d\n",
-		    (void *)sol11ata_ctlp, rc));
+		ADBG_ERROR(("ata_pciide_alloc 0x%p bind %d\n",
+		    (void *)ata_ctlp, rc));
 		goto err1;
 	}
 
@@ -145,54 +145,54 @@ sol11ata_pciide_alloc(
 	ASSERT((cookie.dmac_address & Mask4K)
 		== ((cookie.dmac_address + cookie.dmac_size - 1) & Mask4K));
 
-	sol11ata_ctlp->ac_sg_paddr = cookie.dmac_address;
+	ata_ctlp->ac_sg_paddr = cookie.dmac_address;
 	return (TRUE);
 err1:
-	ddi_dma_mem_free(&sol11ata_ctlp->ac_sg_acc_handle);
-	sol11ata_ctlp->ac_sg_acc_handle = NULL;
+	ddi_dma_mem_free(&ata_ctlp->ac_sg_acc_handle);
+	ata_ctlp->ac_sg_acc_handle = NULL;
 err2:
-	ddi_dma_free_handle(&sol11ata_ctlp->ac_sg_handle);
-	sol11ata_ctlp->ac_sg_handle = NULL;
+	ddi_dma_free_handle(&ata_ctlp->ac_sg_handle);
+	ata_ctlp->ac_sg_handle = NULL;
 err3:
 	return (FALSE);
 }
 
 
 void
-sol11ata_pciide_free(sol11ata_ctl_t *sol11ata_ctlp)
+ata_pciide_free(ata_ctl_t *ata_ctlp)
 {
-	if (sol11ata_ctlp->ac_sg_handle == NULL)
+	if (ata_ctlp->ac_sg_handle == NULL)
 		return;
 
-	(void) ddi_dma_unbind_handle(sol11ata_ctlp->ac_sg_handle);
-	ddi_dma_mem_free(&sol11ata_ctlp->ac_sg_acc_handle);
-	ddi_dma_free_handle(&sol11ata_ctlp->ac_sg_handle);
-	sol11ata_ctlp->ac_sg_handle = NULL;
-	sol11ata_ctlp->ac_sg_acc_handle = NULL;
+	(void) ddi_dma_unbind_handle(ata_ctlp->ac_sg_handle);
+	ddi_dma_mem_free(&ata_ctlp->ac_sg_acc_handle);
+	ddi_dma_free_handle(&ata_ctlp->ac_sg_handle);
+	ata_ctlp->ac_sg_handle = NULL;
+	ata_ctlp->ac_sg_acc_handle = NULL;
 }
 
 
 
 void
-sol11ata_pciide_dma_setup(
-	sol11ata_ctl_t *sol11ata_ctlp,
+ata_pciide_dma_setup(
+	ata_ctl_t *ata_ctlp,
 	prde_t	  *srcp,
 	int	   sg_cnt)
 {
-	ddi_acc_handle_t bmhandle = sol11ata_ctlp->ac_bmhandle;
-	caddr_t		 bmaddr = sol11ata_ctlp->ac_bmaddr;
-	ddi_acc_handle_t sg_acc_handle = sol11ata_ctlp->ac_sg_acc_handle;
-	uint_t		*dstp = (uint_t *)sol11ata_ctlp->ac_sg_list;
+	ddi_acc_handle_t bmhandle = ata_ctlp->ac_bmhandle;
+	caddr_t		 bmaddr = ata_ctlp->ac_bmaddr;
+	ddi_acc_handle_t sg_acc_handle = ata_ctlp->ac_sg_acc_handle;
+	uint_t		*dstp = (uint_t *)ata_ctlp->ac_sg_list;
 	int		 idx;
 
 	ASSERT(dstp != 0);
 	ASSERT(sg_cnt != 0);
 
-	ADBG_DMA(("sol11ata dma_setup 0x%p 0x%p %d\n", sol11ata_ctlp, srcp, sg_cnt));
+	ADBG_DMA(("ata dma_setup 0x%p 0x%p %d\n", ata_ctlp, srcp, sg_cnt));
 	/*
 	 * Copy the PRD list to controller's phys buffer.
 	 * Copying to a fixed location avoids having to check
-	 * every sol11ata_pkt for alignment and page boundaries.
+	 * every ata_pkt for alignment and page boundaries.
 	 */
 	for (idx = 0; idx < sg_cnt - 1; idx++, srcp++) {
 		ddi_put32(sg_acc_handle, dstp++, srcp->p_address);
@@ -210,24 +210,24 @@ sol11ata_pciide_dma_setup(
 	 * give the pciide chip the physical address of the PRDE table
 	 */
 	ddi_put32(bmhandle, (uint_t *)(bmaddr + PCIIDE_BMIDTPX_REG),
-		sol11ata_ctlp->ac_sg_paddr);
+		ata_ctlp->ac_sg_paddr);
 
-	ADBG_DMA(("sol11ata dma_setup 0x%p 0x%llx\n",
-		bmaddr, (unsigned long long)sol11ata_ctlp->ac_sg_paddr));
+	ADBG_DMA(("ata dma_setup 0x%p 0x%llx\n",
+		bmaddr, (unsigned long long)ata_ctlp->ac_sg_paddr));
 }
 
 
 
 void
-sol11ata_pciide_dma_start(
-	sol11ata_ctl_t *sol11ata_ctlp,
+ata_pciide_dma_start(
+	ata_ctl_t *ata_ctlp,
 	uchar_t direction)
 {
-	ddi_acc_handle_t bmhandle = sol11ata_ctlp->ac_bmhandle;
-	caddr_t		 bmaddr = sol11ata_ctlp->ac_bmaddr;
+	ddi_acc_handle_t bmhandle = ata_ctlp->ac_bmhandle;
+	caddr_t		 bmaddr = ata_ctlp->ac_bmaddr;
 	uchar_t		 tmp;
 
-	ASSERT((sol11ata_ctlp->ac_sg_paddr & PCIIDE_BMIDTPX_MASK) == 0);
+	ASSERT((ata_ctlp->ac_sg_paddr & PCIIDE_BMIDTPX_MASK) == 0);
 	ASSERT((direction == PCIIDE_BMICX_RWCON_WRITE_TO_MEMORY) ||
 		(direction == PCIIDE_BMICX_RWCON_READ_FROM_MEMORY));
 
@@ -248,11 +248,11 @@ sol11ata_pciide_dma_start(
 
 
 void
-sol11ata_pciide_dma_stop(
-	sol11ata_ctl_t *sol11ata_ctlp)
+ata_pciide_dma_stop(
+	ata_ctl_t *ata_ctlp)
 {
-	ddi_acc_handle_t bmhandle = sol11ata_ctlp->ac_bmhandle;
-	caddr_t		 bmaddr = sol11ata_ctlp->ac_bmaddr;
+	ddi_acc_handle_t bmhandle = ata_ctlp->ac_bmhandle;
+	caddr_t		 bmaddr = ata_ctlp->ac_bmaddr;
 	uchar_t		 tmp;
 
 	/*
@@ -261,20 +261,20 @@ sol11ata_pciide_dma_stop(
 	tmp = ddi_get8(bmhandle, (uchar_t *)bmaddr + PCIIDE_BMICX_REG);
 	tmp &= (PCIIDE_BMICX_MASK & (~PCIIDE_BMICX_SSBM));
 
-	ADBG_DMA(("sol11ata_pciide_dma_stop 0x%p 0x%x\n", bmaddr, tmp));
+	ADBG_DMA(("ata_pciide_dma_stop 0x%p 0x%x\n", bmaddr, tmp));
 
 	ddi_put8(bmhandle, (uchar_t *)bmaddr + PCIIDE_BMICX_REG, tmp);
 }
 
 /* ARGSUSED */
 void
-sol11ata_pciide_dma_sg_func(
+ata_pciide_dma_sg_func(
 	gcmd_t	*gcmdp,
 	ddi_dma_cookie_t *dmackp,
 	int	 single_segment,
 	int	 seg_index)
 {
-	sol11ata_pkt_t *sol11ata_pktp = GCMD2APKT(gcmdp);
+	ata_pkt_t *ata_pktp = GCMD2APKT(gcmdp);
 	prde_t	  *dmap;
 
 	ASSERT(seg_index < ATA_DMA_NSEGS);
@@ -286,40 +286,40 @@ sol11ata_pciide_dma_sg_func(
 		    gcmdp, dmackp, single_segment, seg_index));
 
 	/* set address of current entry in scatter/gather list */
-	dmap = sol11ata_pktp->ap_sg_list + seg_index;
+	dmap = ata_pktp->ap_sg_list + seg_index;
 
 	/* store the phys addr and count from the cookie */
 	dmap->p_address = (uint_t)dmackp->dmac_address;
 	dmap->p_count = (uint_t)dmackp->dmac_size;
 
 	/* save the count of scatter/gather segments */
-	sol11ata_pktp->ap_sg_cnt = seg_index + 1;
+	ata_pktp->ap_sg_cnt = seg_index + 1;
 
 	/* compute the total bytes in this request */
 	if (seg_index == 0)
-		sol11ata_pktp->ap_bcount = 0;
-	sol11ata_pktp->ap_bcount += dmackp->dmac_size;
+		ata_pktp->ap_bcount = 0;
+	ata_pktp->ap_bcount += dmackp->dmac_size;
 }
 
 
 
 int
-sol11ata_pciide_status_clear(
-	sol11ata_ctl_t *sol11ata_ctlp)
+ata_pciide_status_clear(
+	ata_ctl_t *ata_ctlp)
 {
-	ddi_acc_handle_t bmhandle = sol11ata_ctlp->ac_bmhandle;
-	caddr_t		 bmaddr = sol11ata_ctlp->ac_bmaddr;
+	ddi_acc_handle_t bmhandle = ata_ctlp->ac_bmhandle;
+	caddr_t		 bmaddr = ata_ctlp->ac_bmaddr;
 	uchar_t		 status;
 	uchar_t		 tmp;
 
 	/*
 	 * Get the current PCIIDE status
 	 */
-	status = PCIIDE_STATUS_GET(sol11ata_ctlp->ac_bmhandle, sol11ata_ctlp->ac_bmaddr);
+	status = PCIIDE_STATUS_GET(ata_ctlp->ac_bmhandle, ata_ctlp->ac_bmaddr);
 	tmp = status & PCIIDE_BMISX_MASK;
 	tmp |= (PCIIDE_BMISX_IDERR | PCIIDE_BMISX_IDEINTS);
 
-	ADBG_DMA(("sol11ata_pciide_status_clear 0x%p 0x%x\n",
+	ADBG_DMA(("ata_pciide_status_clear 0x%p 0x%x\n",
 		bmaddr, status));
 
 	/*
@@ -328,8 +328,8 @@ sol11ata_pciide_status_clear(
 	ddi_put8(bmhandle, (uchar_t *)bmaddr + PCIIDE_BMISX_REG, tmp);
 
 #ifdef NAT_SEMI_PC87415_BUG
-	/* ??? chip errsol11ata ??? */
-	if (sol11ata_ctlp->ac_nat_semi_bug) {
+	/* ??? chip errata ??? */
+	if (ata_ctlp->ac_nat_semi_bug) {
 		tmp = ddi_get8(bmhandle, bmaddr + PCIIDE_BMICX_REG);
 		tmp &= PCIIDE_BMICX_MASK;
 		ddi_put8(bmhandle, bmaddr + PCIIDE_BMICX_REG,
@@ -340,23 +340,23 @@ sol11ata_pciide_status_clear(
 }
 
 int
-sol11ata_pciide_status_dmacheck_clear(
-	sol11ata_ctl_t *sol11ata_ctlp)
+ata_pciide_status_dmacheck_clear(
+	ata_ctl_t *ata_ctlp)
 {
 	uchar_t		 status;
 
 	/*
 	 * Get the PCIIDE DMA controller's current status
 	 */
-	status = sol11ata_pciide_status_clear(sol11ata_ctlp);
+	status = ata_pciide_status_clear(ata_ctlp);
 
-	ADBG_DMA(("sol11ata_pciide_status_dmacheck_clear 0x%p 0x%x\n",
-		sol11ata_ctlp->ac_bmaddr, status));
+	ADBG_DMA(("ata_pciide_status_dmacheck_clear 0x%p 0x%x\n",
+		ata_ctlp->ac_bmaddr, status));
 	/*
 	 * check for errors
 	 */
 	if (status & PCIIDE_BMISX_IDERR) {
-		ADBG_WARN(("sol11ata_pciide_status: 0x%x\n", status));
+		ADBG_WARN(("ata_pciide_status: 0x%x\n", status));
 		return (TRUE);
 	}
 	return (FALSE);
@@ -369,14 +369,14 @@ sol11ata_pciide_status_dmacheck_clear(
  */
 
 int
-sol11ata_pciide_status_pending(
-	sol11ata_ctl_t *sol11ata_ctlp)
+ata_pciide_status_pending(
+	ata_ctl_t *ata_ctlp)
 {
 	uchar_t status;
 
-	status = PCIIDE_STATUS_GET(sol11ata_ctlp->ac_bmhandle, sol11ata_ctlp->ac_bmaddr);
-	ADBG_DMA(("sol11ata_pciide_status_pending 0x%p 0x%x\n",
-		sol11ata_ctlp->ac_bmaddr, status));
+	status = PCIIDE_STATUS_GET(ata_ctlp->ac_bmhandle, ata_ctlp->ac_bmaddr);
+	ADBG_DMA(("ata_pciide_status_pending 0x%p 0x%x\n",
+		ata_ctlp->ac_bmaddr, status));
 	if (status & PCIIDE_BMISX_IDEINTS)
 		return (TRUE);
 	return (FALSE);

@@ -68,7 +68,7 @@ pcibl_t	sol11ata_pciide_blacklist[] = {
  * add drives that have DMA or other problems to this list
  */
 
-sol11atabl_t	sol11ata_drive_blacklist[] = {
+atabl_t	sol11ata_drive_blacklist[] = {
 	{ "NEC CD-ROM DRIVE:260",	ATA_BL_1SECTOR },
 	{ "NEC CD-ROM DRIVE:272",	ATA_BL_1SECTOR },
 	{ "NEC CD-ROM DRIVE:273",	ATA_BL_1SECTOR },

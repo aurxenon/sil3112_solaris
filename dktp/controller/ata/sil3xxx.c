@@ -42,8 +42,8 @@
 #include "sil3xxx.h"
 #include <sys/pci.h>
 
-int fifocntctl[] = {FIFO_CNTCTL_0, FIFO_CNTCTL_1, FIFO_CNTCTL_2, FIFO_CNTCTL_3};
-int sfiscfg[] = {SFISCFG_0, SFISCFG_1, SFISCFG_2, SFISCFG_3};
+static int fifocntctl[] = {FIFO_CNTCTL_0, FIFO_CNTCTL_1, FIFO_CNTCTL_2, FIFO_CNTCTL_3};
+static int sfiscfg[] = {SFISCFG_0, SFISCFG_1, SFISCFG_2, SFISCFG_3};
 
 /*
  * Controller specific initialization

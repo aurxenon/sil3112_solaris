@@ -52,9 +52,9 @@ extern	pcibl_t	sol11ata_pciide_blacklist[];
 typedef	struct {
 	char	*b_model;
 	uint_t	 b_flags;
-} sol11atabl_t;
+} atabl_t;
 
-extern	sol11atabl_t	sol11ata_drive_blacklist[];
+extern	atabl_t	sol11ata_drive_blacklist[];
 
 /*
  * use the same flags for both lists

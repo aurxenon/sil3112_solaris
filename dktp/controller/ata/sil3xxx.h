@@ -66,8 +66,8 @@ extern "C" {
 #define	FIFO_CNTCTL_3 0x244
 
 /*
- * Errsol11ata Sil-AN-0028-C (Sil3512 Rev 0.3)
- * Errsol11ata Sil-AN-0109-B2 (Sil3114 Rev 0.3)
+ * Errata Sil-AN-0028-C (Sil3512 Rev 0.3)
+ * Errata Sil-AN-0109-B2 (Sil3114 Rev 0.3)
  * To prevent erroneous ERR set for queued DMA transfers
  * greater then 8k, FIS reception for FIS0cfg needs to be set
  * to Accept FIS without Interlock

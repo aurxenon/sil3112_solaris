@@ -35,13 +35,13 @@ extern "C" {
 
 
 /*
- * Additional sol11atapi status bits (redefinitions)
+ * Additional atapi status bits (redefinitions)
  */
 #define	ATE_ILI		0x01    /* Illegal length indication		*/
 #define	ATE_EOM		0x02	/* End of media detected		*/
 #define	ATE_MCR		0x08	/* Media change requested		*/
 #define	ATS_SERVICE	0x10	/* overlap operation needs service	*/
-#define	ATS_SENSE_KEY	0xf0	/* 4 bit sense key -see sol11ata_sense_table */
+#define	ATS_SENSE_KEY	0xf0	/* 4 bit sense key -see ata_sense_table */
 
 #define	ATS_SENSE_KEY_SHIFT 4	/* shift to get to ATS_SENSE_KEY	*/
 
@@ -94,7 +94,7 @@ extern "C" {
 
 /* Useful macros */
 
-#define	TRAN2CTL(tran)  ((sol11ata_ctl_t *)((tran)->tran_hba_private))
+#define	TRAN2CTL(tran)  ((ata_ctl_t *)((tran)->tran_hba_private))
 #define	ADDR2CTL(ap)    (TRAN2CTL(ADDR2TRAN(ap)))
 
 #define	SPKT2APKT(spkt)	(GCMD2APKT(PKTP2GCMDP(spkt)))
@@ -102,26 +102,26 @@ extern "C" {
 
 /* public function prototypes */
 
-int	sol11atapi_attach(sol11ata_ctl_t *sol11ata_ctlp);
-void	sol11atapi_detach(sol11ata_ctl_t *sol11ata_ctlp);
-void	sol11atapi_init_arq(sol11ata_ctl_t *sol11ata_ctlp);
-int	sol11atapi_init_drive(sol11ata_drv_t *sol11ata_drvp);
-void	sol11atapi_uninit_drive(sol11ata_drv_t *sol11ata_drvp);
+int	atapi_attach(ata_ctl_t *ata_ctlp);
+void	atapi_detach(ata_ctl_t *ata_ctlp);
+void	atapi_init_arq(ata_ctl_t *ata_ctlp);
+int	sol11atapi_init_drive(ata_drv_t *ata_drvp);
+void	atapi_uninit_drive(ata_drv_t *ata_drvp);
 
 int	sol11atapi_id(ddi_acc_handle_t io_hdl1, caddr_t ioaddr1,
-		ddi_acc_handle_t io_hdl2, caddr_t ioaddr2, struct sol11ata_id *buf);
+		ddi_acc_handle_t io_hdl2, caddr_t ioaddr2, struct ata_id *buf);
 int	sol11atapi_signature(ddi_acc_handle_t io_hdl, caddr_t ioaddr);
 
-int	sol11atapi_ccballoc(gtgt_t *gtgtp, gcmd_t *gcmdp, int cmdlen,
+int	atapi_ccballoc(gtgt_t *gtgtp, gcmd_t *gcmdp, int cmdlen,
 		int statuslen, int tgtlen, int ccblen);
-void	sol11atapi_ccbfree(gcmd_t *gcmdp);
+void	atapi_ccbfree(gcmd_t *gcmdp);
 
 
-int	sol11atapi_fsm_intr(sol11ata_ctl_t *sol11ata_ctlp, sol11ata_drv_t *sol11ata_drvp,
-		sol11ata_pkt_t *sol11ata_pktp);
-int	sol11atapi_fsm_start(sol11ata_ctl_t *sol11ata_ctlp, sol11ata_drv_t *sol11ata_drvp,
-		sol11ata_pkt_t *sol11ata_pktp);
-void	sol11atapi_fsm_reset(sol11ata_ctl_t *sol11ata_ctlp);
+int	atapi_fsm_intr(ata_ctl_t *ata_ctlp, ata_drv_t *ata_drvp,
+		ata_pkt_t *ata_pktp);
+int	atapi_fsm_start(ata_ctl_t *ata_ctlp, ata_drv_t *ata_drvp,
+		ata_pkt_t *ata_pktp);
+void	atapi_fsm_reset(ata_ctl_t *ata_ctlp);
 
 
 

@@ -69,7 +69,7 @@ extern "C" {
 
 
 /*
- * sol11ata-options property configuration bits
+ * ata-options property configuration bits
  */
 
 #define	ATA_OPTIONS_DMA		0x01
@@ -218,21 +218,21 @@ extern "C" {
 
 #define	CTL2DRV(cp, t, l)	(cp->ac_drvp[t][l])
 
-typedef struct sol11ata_ctl {
+typedef struct ata_ctl {
 
 	dev_info_t	*ac_dip;
 	uint_t		 ac_flags;
 	uint_t		 ac_timing_flags;
-	struct sol11ata_drv	*ac_drvp[ATA_MAXTARG][ATA_MAXLUN];
+	struct ata_drv	*ac_drvp[ATA_MAXTARG][ATA_MAXLUN];
 	int		 ac_max_transfer; /* max transfer in sectors */
 	uint_t		 ac_standby_time; /* timer value seconds */
 
 	ccc_t		 ac_ccc;	  /* for GHD module */
-	struct sol11ata_drv	*ac_active_drvp;  /* active drive, if any */
-	struct sol11ata_pkt	*ac_active_pktp;  /* active packet, if any */
+	struct ata_drv	*ac_active_drvp;  /* active drive, if any */
+	struct ata_pkt	*ac_active_pktp;  /* active packet, if any */
 	uchar_t		 ac_state;
 
-	scsi_hba_tran_t *ac_sol11atapi_tran;	  /* for sol11atapi module */
+	scsi_hba_tran_t *ac_atapi_tran;	  /* for atapi module */
 
 	/*
 	 * port addresses associated with ioaddr1
@@ -277,10 +277,10 @@ typedef struct sol11ata_ctl {
 	/*
 	 * data for managing ARQ on ATAPI devices
 	 */
-	struct sol11ata_pkt	*ac_arq_pktp;	  /* pkt for performing ATAPI ARQ */
-	struct sol11ata_pkt	*ac_fault_pktp;	  /* pkt that caused ARQ */
+	struct ata_pkt	*ac_arq_pktp;	  /* pkt for performing ATAPI ARQ */
+	struct ata_pkt	*ac_fault_pktp;	  /* pkt that caused ARQ */
 	uchar_t		 ac_arq_cdb[6];
-} sol11ata_ctl_t;
+} ata_ctl_t;
 
 /* ac_flags (per-controller) */
 
@@ -302,12 +302,12 @@ typedef struct sol11ata_ctl {
  */
 
 /* ac_timing_flags (per-controller) */
-#define	AC_BSY_WAIT	0x1	/* tweak timing in sol11ata_start & sol11atapi_start */
+#define	AC_BSY_WAIT	0x1	/* tweak timing in ata_start & atapi_start */
 
 
 
 /* Identify drive data */
-struct sol11ata_id {
+struct ata_id {
 /*  					WORD				*/
 /* 					OFFSET COMMENT			*/
 	ushort_t  ai_config;	  /*   0  general configuration bits 	*/
@@ -426,9 +426,9 @@ struct sol11ata_id {
 
 /* per-drive data struct */
 
-typedef struct sol11ata_drv {
-	sol11ata_ctl_t		*ad_ctlp; 	/* pointer back to ctlr */
-	struct sol11ata_id		ad_id;  	/* IDENTIFY DRIVE data */
+typedef struct ata_drv {
+	ata_ctl_t		*ad_ctlp; 	/* pointer back to ctlr */
+	struct ata_id		ad_id;  	/* IDENTIFY DRIVE data */
 
 	uint_t			ad_flags;
 	uchar_t			ad_pciide_dma;	/* PCIIDE DMA supported */
@@ -436,7 +436,7 @@ typedef struct sol11ata_drv {
 	uchar_t			ad_lun;		/* lun */
 	uchar_t			ad_drive_bits;
 
-	/* Used by sol11atapi side only */
+	/* Used by atapi side only */
 
 	uchar_t			ad_state;	/* state of ATAPI FSM */
 	uchar_t			ad_cdb_len;	/* Size of ATAPI CDBs */
@@ -457,7 +457,7 @@ typedef struct sol11ata_drv {
 	 * Geometry note: The following three values are the geometry
 	 * that the driver will use.  They may differ from the
 	 * geometry reported by the controller and/or BIOS.  See note
-	 * on sol11ata_fix_large_disk_geometry in sol11ata_disk.c for more
+	 * on ata_fix_large_disk_geometry in ata_disk.c for more
 	 * details.
 	 */
 	uint32_t		ad_drvrcyl;	/* number of cyls */
@@ -472,70 +472,70 @@ typedef struct sol11ata_drv {
 	 * Support for 48-bit LBA (ATA-6)
 	 */
 	uint64_t		ad_capacity;	/* Total sectors on disk */
-} sol11ata_drv_t;
+} ata_drv_t;
 
-typedef	struct	sol11ata_tgt {
-	sol11ata_drv_t	*at_drvp;
+typedef	struct	ata_tgt {
+	ata_drv_t	*at_drvp;
 	int		 at_arq;
 	ulong_t		 at_total_sectors;
 	ddi_dma_attr_t	 at_dma_attr;
-} sol11ata_tgt_t;
+} ata_tgt_t;
 
 /* values for ad_pciide_dma */
 #define	ATA_DMA_OFF	0x0
 #define	ATA_DMA_ON	0x1
 
 /*
- * (sol11ata_pkt_t *) to (gcmd_t *)
+ * (ata_pkt_t *) to (gcmd_t *)
  */
 #define	APKT2GCMD(apktp)	(apktp->ap_gcmdp)
 
 /*
- * (gcmd_t *) to (sol11ata_pkt_t *)
+ * (gcmd_t *) to (ata_pkt_t *)
  */
-#define	GCMD2APKT(gcmdp)	((sol11ata_pkt_t *)gcmdp->cmd_private)
+#define	GCMD2APKT(gcmdp)	((ata_pkt_t *)gcmdp->cmd_private)
 
 /*
- * (gtgt_t *) to (sol11ata_ctl_t *)
+ * (gtgt_t *) to (ata_ctl_t *)
  */
-#define	GTGTP2ATAP(gtgtp)	((sol11ata_ctl_t *)GTGTP2HBA(gtgtp))
+#define	GTGTP2ATAP(gtgtp)	((ata_ctl_t *)GTGTP2HBA(gtgtp))
 
 /*
- * (gtgt_t *) to (sol11ata_tgt_t *)
+ * (gtgt_t *) to (ata_tgt_t *)
  */
-#define	GTGTP2ATATGTP(gtgtp)	((sol11ata_tgt_t *)GTGTP2TARGET(gtgtp))
+#define	GTGTP2ATATGTP(gtgtp)	((ata_tgt_t *)GTGTP2TARGET(gtgtp))
 
 /*
- * (gtgt_t *) to (sol11ata_drv_t *)
+ * (gtgt_t *) to (ata_drv_t *)
  */
 #define	GTGTP2ATADRVP(gtgtp)	(GTGTP2ATATGTP(gtgtp)->at_drvp)
 
 /*
- * (gcmd_t *) to (sol11ata_tgt_t *)
+ * (gcmd_t *) to (ata_tgt_t *)
  */
 #define	GCMD2TGT(gcmdp)		GTGTP2ATATGTP(GCMDP2GTGTP(gcmdp))
 
 /*
- * (gcmd_t *) to (sol11ata_drv_t *)
+ * (gcmd_t *) to (ata_drv_t *)
  */
 #define	GCMD2DRV(gcmdp)		GTGTP2ATADRVP(GCMDP2GTGTP(gcmdp))
 
 /*
- * (sol11ata_pkt_t *) to (sol11ata_drv_t *)
+ * (ata_pkt_t *) to (ata_drv_t *)
  */
 #define	APKT2DRV(apktp)		GCMD2DRV(APKT2GCMD(apktp))
 
 
 /*
- * (struct hba_tran *) to (sol11ata_ctl_t *)
+ * (struct hba_tran *) to (ata_ctl_t *)
  */
-#define	TRAN2ATAP(tranp) 	((sol11ata_ctl_t *)TRAN2HBA(tranp))
+#define	TRAN2ATAP(tranp) 	((ata_ctl_t *)TRAN2HBA(tranp))
 
 
 /*
- * sol11ata common packet structure
+ * ata common packet structure
  */
-typedef struct sol11ata_pkt {
+typedef struct ata_pkt {
 
 	gcmd_t		*ap_gcmdp;	/* GHD command struct */
 
@@ -567,14 +567,14 @@ typedef struct sol11ata_pkt {
 	uchar_t		ap_status;
 	uchar_t		ap_error;
 
-	/* disk/sol11atapi callback routines */
+	/* disk/atapi callback routines */
 
-	int		(*ap_start)(sol11ata_ctl_t *sol11ata_ctlp, sol11ata_drv_t *sol11ata_drvp,
-				struct sol11ata_pkt *sol11ata_pktp);
-	int		(*ap_intr)(sol11ata_ctl_t *sol11ata_ctlp, sol11ata_drv_t *sol11ata_drvp,
-				struct sol11ata_pkt *sol11ata_pktp);
-	void		(*ap_complete)(sol11ata_drv_t *sol11ata_drvp,
-				struct sol11ata_pkt *sol11ata_pktp, int do_callback);
+	int		(*ap_start)(ata_ctl_t *ata_ctlp, ata_drv_t *ata_drvp,
+				struct ata_pkt *ata_pktp);
+	int		(*ap_intr)(ata_ctl_t *ata_ctlp, ata_drv_t *ata_drvp,
+				struct ata_pkt *ata_pktp);
+	void		(*ap_complete)(ata_drv_t *ata_drvp,
+				struct ata_pkt *ata_pktp, int do_callback);
 
 	/* Used by disk side */
 
@@ -586,7 +586,7 @@ typedef struct sol11ata_pkt {
 	size_t		ap_resid_sav;	/* Original # of bytes */
 					/* left to read/write. */
 
-	/* Used by sol11atapi side */
+	/* Used by atapi side */
 
 	uchar_t		*ap_cdbp;	/* ptr to SCSI CDB */
 	uchar_t		ap_cdb_len;	/* length of SCSI CDB (in bytes) */
@@ -594,13 +594,13 @@ typedef struct sol11ata_pkt {
 
 	struct scsi_arq_status *ap_scbp; /* ptr to SCSI status block */
 	uchar_t		ap_statuslen;	/* length of SCSI status block */
-} sol11ata_pkt_t;
+} ata_pkt_t;
 
 
 /*
  * defines for ap_flags
  */
-#define	AP_ATAPI		0x0001	/* device is sol11atapi */
+#define	AP_ATAPI		0x0001	/* device is atapi */
 #define	AP_ERROR		0x0002	/* normal error */
 #define	AP_TRAN_ERROR		0x0004	/* transport error */
 #define	AP_READ			0x0008	/* read data */
@@ -610,10 +610,10 @@ typedef struct sol11ata_pkt {
 #define	AP_BUS_RESET		0x0080	/* bus reset */
 #define	AP_DEV_RESET		0x0100	/* device reset */
 
-#define	AP_SENT_CMD		0x0200	/* sol11atapi: cdb sent */
-#define	AP_XFERRED_DATA		0x0400	/* sol11atapi: data transferred */
-#define	AP_GOT_STATUS		0x0800	/* sol11atapi: status received */
-#define	AP_ARQ_ON_ERROR		0x1000	/* sol11atapi: do ARQ on error */
+#define	AP_SENT_CMD		0x0200	/* atapi: cdb sent */
+#define	AP_XFERRED_DATA		0x0400	/* atapi: data transferred */
+#define	AP_GOT_STATUS		0x0800	/* atapi: status received */
+#define	AP_ARQ_ON_ERROR		0x1000	/* atapi: do ARQ on error */
 #define	AP_ARQ_OKAY		0x2000
 #define	AP_ARQ_ERROR		0x4000
 
@@ -624,29 +624,29 @@ typedef struct sol11ata_pkt {
  * public function prototypes
  */
 
-int	sol11ata_check_drive_blacklist(struct sol11ata_id *aidp, uint_t flags);
-int	sol11ata_command(sol11ata_ctl_t *sol11ata_ctlp, sol11ata_drv_t *sol11ata_drvp, int expect_drdy,
+int	ata_check_drive_blacklist(struct ata_id *aidp, uint_t flags);
+int	ata_command(ata_ctl_t *ata_ctlp, ata_drv_t *ata_drvp, int expect_drdy,
 		int silent, uint_t busy_wait, uchar_t cmd, uchar_t feature,
 		uchar_t count, uchar_t sector, uchar_t head, uchar_t cyl_low,
 		uchar_t cyl_hi);
-int	sol11ata_get_status_clear_intr(sol11ata_ctl_t *sol11ata_ctlp, sol11ata_pkt_t *sol11ata_pktp);
-int	sol11ata_id_common(uchar_t id_cmd, int drdy_expected,
+int	ata_get_status_clear_intr(ata_ctl_t *ata_ctlp, ata_pkt_t *ata_pktp);
+int	ata_id_common(uchar_t id_cmd, int drdy_expected,
 		ddi_acc_handle_t io_hdl1, caddr_t ioaddr1,
 		ddi_acc_handle_t io_hdl2, caddr_t ioaddr2,
-		struct sol11ata_id *sol11ata_idp);
-int	sol11ata_prop_create(dev_info_t *tgt_dip, sol11ata_drv_t *sol11ata_drvp, char *name);
-int	sol11ata_queue_cmd(int (*func)(sol11ata_ctl_t *, sol11ata_drv_t *, sol11ata_pkt_t *),
-		void *arg, sol11ata_ctl_t *sol11ata_ctlp, sol11ata_drv_t *sol11ata_drvp,
+		struct ata_id *ata_idp);
+int	ata_prop_create(dev_info_t *tgt_dip, ata_drv_t *ata_drvp, char *name);
+int	ata_queue_cmd(int (*func)(ata_ctl_t *, ata_drv_t *, ata_pkt_t *),
+		void *arg, ata_ctl_t *ata_ctlp, ata_drv_t *ata_drvp,
 		gtgt_t *gtgtp);
-int	sol11ata_set_feature(sol11ata_ctl_t *sol11ata_ctlp, sol11ata_drv_t *sol11ata_drvp,
+int	sol11ata_set_feature(ata_ctl_t *ata_ctlp, ata_drv_t *ata_drvp,
 		uchar_t feature, uchar_t value);
 int	sol11ata_wait(ddi_acc_handle_t io_hdl, caddr_t ioaddr, uchar_t onbits,
 		uchar_t offbits, uint_t timeout_usec);
-int	sol11ata_wait3(ddi_acc_handle_t io_hdl, caddr_t ioaddr, uchar_t onbits1,
+int	ata_wait3(ddi_acc_handle_t io_hdl, caddr_t ioaddr, uchar_t onbits1,
 		uchar_t offbits1, uchar_t failure_onbits2,
 		uchar_t failure_offbits2, uchar_t failure_onbits3,
 		uchar_t failure_offbits3, uint_t timeout_usec);
-int	sol11ata_test_lba_support(struct sol11ata_id *aidp);
+int	ata_test_lba_support(struct ata_id *aidp);
 
 /*
  * It's not clear to which of the two following delay mechanisms is
@@ -675,22 +675,22 @@ int	sol11ata_test_lba_support(struct sol11ata_id *aidp);
 
 
 /*
- * PCIIDE DMA (Bus Mastering) functions and data in sol11ata_dma.c
+ * PCIIDE DMA (Bus Mastering) functions and data in ata_dma.c
  */
-extern	ddi_dma_attr_t sol11ata_pciide_dma_attr;
-extern	int	sol11ata_dma_disabled;
+extern	ddi_dma_attr_t ata_pciide_dma_attr;
+extern	int	ata_dma_disabled;
 
-int	sol11ata_pciide_alloc(dev_info_t *dip, sol11ata_ctl_t *sol11ata_ctlp);
-void	sol11ata_pciide_free(sol11ata_ctl_t *sol11ata_ctlp);
+int	ata_pciide_alloc(dev_info_t *dip, ata_ctl_t *ata_ctlp);
+void	ata_pciide_free(ata_ctl_t *ata_ctlp);
 
-void	sol11ata_pciide_dma_sg_func(gcmd_t *gcmdp, ddi_dma_cookie_t *dmackp,
+void	ata_pciide_dma_sg_func(gcmd_t *gcmdp, ddi_dma_cookie_t *dmackp,
 		int single_segment, int seg_index);
-void	sol11ata_pciide_dma_setup(sol11ata_ctl_t *sol11ata_ctlp, prde_t *srcp, int sg_cnt);
-void	sol11ata_pciide_dma_start(sol11ata_ctl_t *sol11ata_ctlp, uchar_t direction);
-void	sol11ata_pciide_dma_stop(sol11ata_ctl_t *sol11ata_ctlp);
-int	sol11ata_pciide_status_clear(sol11ata_ctl_t *sol11ata_ctlp);
-int	sol11ata_pciide_status_dmacheck_clear(sol11ata_ctl_t *sol11ata_ctlp);
-int	sol11ata_pciide_status_pending(sol11ata_ctl_t *sol11ata_ctlp);
+void	ata_pciide_dma_setup(ata_ctl_t *ata_ctlp, prde_t *srcp, int sg_cnt);
+void	ata_pciide_dma_start(ata_ctl_t *ata_ctlp, uchar_t direction);
+void	ata_pciide_dma_stop(ata_ctl_t *ata_ctlp);
+int	ata_pciide_status_clear(ata_ctl_t *ata_ctlp);
+int	ata_pciide_status_dmacheck_clear(ata_ctl_t *ata_ctlp);
+int	ata_pciide_status_pending(ata_ctl_t *ata_ctlp);
 
 #ifdef	__cplusplus
 }

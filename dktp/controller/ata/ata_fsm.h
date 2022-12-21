@@ -92,7 +92,7 @@ enum {
  */
 
 enum {
-	S_IDLE,		/* idle or fsol11atal error state */
+	S_IDLE,		/* idle or fatal error state */
 	S_CMD,		/* command byte sent */
 	S_CDB,		/* CDB sent */
 	S_IN,		/* transferring data in from device */
