@@ -39,14 +39,14 @@ extern "C" {
 #define	ds_mutex	ds_cmn.dsc_mutex
 #define	ds_tgcomobjp	ds_cmn.dsc_tgcomobjp
 
-struct  sol11fc_data_cmn {
+struct  fc_data_cmn {
 	kstat_t		*dsc_kstat;
 	kmutex_t	dsc_mutex;
 	opaque_t	dsc_tgcomobjp;
 };
 
-struct	sol11fc_data {
-	struct sol11fc_data_cmn ds_cmn;
+struct	fc_data {
+	struct fc_data_cmn ds_cmn;
 
 	short		ds_flag;
 	short		ds_outcnt;
@@ -59,19 +59,19 @@ struct	sol11fc_data {
 #define	ds_waitcnt	ds_tab.b_bcount
 #define	ds_bp 		ds_actf
 
-struct  sol11fc_que  {
-	struct sol11fc_que   *next;
-	opaque_t	sol11fc_qobjp;
-	struct buf	*sol11fc_bp;
-	short		sol11fc_outcnt;
-	short		sol11fc_maxcnt;
+struct  fc_que  {
+	struct fc_que   *next;
+	opaque_t	fc_qobjp;
+	struct buf	*fc_bp;
+	short		fc_outcnt;
+	short		fc_maxcnt;
 };
 
-struct	sol11duplx_data {
-	struct sol11fc_data_cmn ds_cmn;
+struct	duplx_data {
+	struct fc_data_cmn ds_cmn;
 
-	struct sol11fc_que   ds_readq;
-	struct sol11fc_que   ds_writeq;
+	struct fc_que   ds_readq;
+	struct fc_que   ds_writeq;
 };
 
 #ifdef	__cplusplus

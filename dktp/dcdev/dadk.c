@@ -44,8 +44,9 @@
 #include <dktp/tgcom.h>
 #include <dktp/tgdk.h>
 #include <dktp/bbh.h>
-#include <dktp/dadkio.h>
+#include <sys/dktp/dadkio.h>
 #include <dktp/dadk.h>
+#include <dktp/dadkio_extras.h>
 #include <sys/cdio.h>
 
 /*

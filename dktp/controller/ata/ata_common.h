@@ -37,7 +37,7 @@ extern "C" {
 
 #include <sys/scsi/scsi_types.h>
 #include <sys/scsi/impl/transport.h>
-#include <dktp/dadkio.h>
+#include <sys/dktp/dadkio.h>
 #include <sys/dkio.h>
 #include <dktp/dadev.h>
 #include <dktp/tgdk.h>

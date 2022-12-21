@@ -33,39 +33,39 @@
 extern "C" {
 #endif
 
-struct	sol11flc_obj {
-	opaque_t		sol11flc_data;
-	struct sol11flc_objops	*sol11flc_ops;
+struct	flc_obj {
+	opaque_t		flc_data;
+	struct flc_objops	*flc_ops;
 };
 
-struct	sol11flc_objops {
-	int	(*sol11flc_init)(opaque_t, opaque_t, opaque_t, void *);
-	int	(*sol11flc_free)(struct sol11flc_obj *);
-	int	(*sol11flc_enque)(opaque_t, struct buf *);
-	int	(*sol11flc_deque)(opaque_t, struct buf *);
-	int	(*sol11flc_start_kstat)(opaque_t, char *, int);
-	int	(*sol11flc_stop_kstat)(opaque_t);
-	void	*sol11flc_resv[2];
+struct	flc_objops {
+	int	(*flc_init)(opaque_t, opaque_t, opaque_t, void *);
+	int	(*flc_free)(struct flc_obj *);
+	int	(*flc_enque)(opaque_t, struct buf *);
+	int	(*flc_deque)(opaque_t, struct buf *);
+	int	(*flc_start_kstat)(opaque_t, char *, int);
+	int	(*flc_stop_kstat)(opaque_t);
+	void	*flc_resv[2];
 };
 
-struct sol11flc_obj *sol11dsngl_create();
-struct sol11flc_obj *sol11dmult_create();
-struct sol11flc_obj *sol11duplx_create();
-struct sol11flc_obj *sol11adapt_create();
+struct flc_obj *dsngl_create();
+struct flc_obj *dmult_create();
+struct flc_obj *duplx_create();
+struct flc_obj *adapt_create();
 
 #define	FLC_INIT(X, tgcomobjp, queobjp, lkarg) \
-	(*((struct sol11flc_obj *)(X))->sol11flc_ops->sol11flc_init) \
-	(((struct sol11flc_obj *)(X))->sol11flc_data, (tgcomobjp), (queobjp), (lkarg))
-#define	FLC_FREE(X) (*((struct sol11flc_obj *)(X))->sol11flc_ops->sol11flc_free) ((X))
-#define	FLC_ENQUE(X, bp) (*((struct sol11flc_obj *)(X))->sol11flc_ops->sol11flc_enque) \
-	(((struct sol11flc_obj *)(X))->sol11flc_data, (bp))
-#define	FLC_DEQUE(X, bp) (*((struct sol11flc_obj *)(X))->sol11flc_ops->sol11flc_deque) \
-	(((struct sol11flc_obj *)(X))->sol11flc_data, (bp))
+	(*((struct flc_obj *)(X))->flc_ops->flc_init) \
+	(((struct flc_obj *)(X))->flc_data, (tgcomobjp), (queobjp), (lkarg))
+#define	FLC_FREE(X) (*((struct flc_obj *)(X))->flc_ops->flc_free) ((X))
+#define	FLC_ENQUE(X, bp) (*((struct flc_obj *)(X))->flc_ops->flc_enque) \
+	(((struct flc_obj *)(X))->flc_data, (bp))
+#define	FLC_DEQUE(X, bp) (*((struct flc_obj *)(X))->flc_ops->flc_deque) \
+	(((struct flc_obj *)(X))->flc_data, (bp))
 #define	FLC_START_KSTAT(X, devtype, instance) \
-	(*((struct sol11flc_obj *)(X))->sol11flc_ops->sol11flc_start_kstat)\
-	(((struct sol11flc_obj *)(X))->sol11flc_data, (devtype), (instance))
-#define	FLC_STOP_KSTAT(X) (*((struct sol11flc_obj *)(X))->sol11flc_ops->sol11flc_stop_kstat) \
-	(((struct sol11flc_obj *)(X))->sol11flc_data)
+	(*((struct flc_obj *)(X))->flc_ops->flc_start_kstat)\
+	(((struct flc_obj *)(X))->flc_data, (devtype), (instance))
+#define	FLC_STOP_KSTAT(X) (*((struct flc_obj *)(X))->flc_ops->flc_stop_kstat) \
+	(((struct flc_obj *)(X))->flc_data)
 
 #ifdef	__cplusplus
 }

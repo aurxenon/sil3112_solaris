@@ -96,7 +96,7 @@ struct	tgdk_objops {
 	void *tg_resv[1];
 };
 
-struct tgdk_obj *sol11dadk_create();
+struct tgdk_obj *dadk_create();
 
 #define	TGDK_GETNODETYPE(X) (((struct tgdk_obj *)(X))->tg_ext->tg_nodetype)
 #define	TGDK_SETNODETYPE(X, Y) \

@@ -39,7 +39,7 @@
 #include <dktp/bbh.h>
 #include <dktp/altsctr.h>
 #include <dktp/cmdk.h>
-#include <dktp/dadkio.h>
+#include <sys/dktp/dadkio.h>
 
 #include <sys/stat.h>
 #include <sys/vtoc.h>

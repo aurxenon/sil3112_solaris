@@ -39,15 +39,15 @@ extern "C" {
 
 #ifdef  _KERNEL
 
-extern void 	sol11gda_inqfill(char *p, int l, char *s);
+extern void 	gda_inqfill(char *p, int l, char *s);
 /*PRINTFLIKE4*/
-extern void	sol11gda_log(dev_info_t *, char *, uint_t, const char *, ...)
+extern void	gda_log(dev_info_t *, char *, uint_t, const char *, ...)
 	__KPRINTFLIKE(4);
-extern void	sol11gda_errmsg(struct scsi_device *, struct cmpkt *, char *,
+extern void	gda_errmsg(struct scsi_device *, struct cmpkt *, char *,
 			int, int, int, char **, char **);
-extern struct 	cmpkt *sol11gda_pktprep(opaque_t objp, struct cmpkt *in_pktp,
+extern struct 	cmpkt *gda_pktprep(opaque_t objp, struct cmpkt *in_pktp,
 			opaque_t dmatoken, int (*func)(caddr_t), caddr_t arg);
-extern void	sol11gda_free(opaque_t objp, struct cmpkt *pktp, struct buf *bp);
+extern void	gda_free(opaque_t objp, struct cmpkt *pktp, struct buf *bp);
 
 #endif  /* _KERNEL */
 

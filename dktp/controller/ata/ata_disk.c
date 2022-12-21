@@ -30,6 +30,7 @@
 #include <sys/dkio.h>
 #include <sys/cdio.h>
 #include <sys/file.h>
+#include <dktp/dadkio_extras.h>
 
 #include "ata_common.h"
 #include "ata_disk.h"

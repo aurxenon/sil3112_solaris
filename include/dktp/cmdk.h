@@ -45,7 +45,7 @@ extern "C" {
  */
 #define	CMDK_HWIDLEN	(64)
 
-struct	sol11cmdk {
+struct	cmdk {
 	/* set during probe */
 	dev_info_t	*dk_dip;
 	dev_t		dk_dev;
@@ -55,7 +55,7 @@ struct	sol11cmdk {
 	cmlb_handle_t	dk_cmlbhandle;
 	ddi_devid_t	dk_devid;
 
-	kmutex_t	dk_mutex;		/* mutex for sol11cmdk struct */
+	kmutex_t	dk_mutex;		/* mutex for cmdk struct */
 
 	long		dk_flag;
 	uint64_t	dk_open_reg[OTYPCNT];	/* bit per partition: 2^6 */

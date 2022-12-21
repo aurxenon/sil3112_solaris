@@ -33,31 +33,31 @@
 extern "C" {
 #endif
 
-struct	sol11que_obj {
-	opaque_t		sol11que_data;
-	struct sol11que_objops	*que_ops;
+struct	que_obj {
+	opaque_t		que_data;
+	struct que_objops	*que_ops;
 };
 
-struct	sol11que_objops {
-	int	(*que_init)(struct sol11que_data *, void *);
-	int	(*que_free)(struct sol11que_obj *);
-	int	(*que_ins)(struct sol11que_data *, struct buf *);
-	struct buf *(*que_del)(struct sol11que_data *);
+struct	que_objops {
+	int	(*que_init)(struct que_data *, void *);
+	int	(*que_free)(struct que_obj *);
+	int	(*que_ins)(struct que_data *, struct buf *);
+	struct buf *(*que_del)(struct que_data *);
 	void	*que_res[2];
 };
 
-struct sol11que_obj *sol11qfifo_create();
-struct sol11que_obj *sol11qmerge_create();
-struct sol11que_obj *sol11qsort_create();
-struct sol11que_obj *sol11qtag_create();
+struct que_obj *qfifo_create();
+struct que_obj *qmerge_create();
+struct que_obj *qsort_create();
+struct que_obj *qtag_create();
 
-#define	SOL11QUE_INIT(X, lkarg) (*((struct sol11que_obj *)(X))->que_ops->que_init) \
-	(((struct sol11que_obj *)(X))->sol11que_data, (lkarg))
-#define	SOL11QUE_FREE(X) (*((struct sol11que_obj *)(X))->que_ops->que_free) ((X))
-#define	SOL11QUE_ADD(X, bp) (*((struct sol11que_obj *)(X))->que_ops->que_ins) \
-	(((struct sol11que_obj *)(X))->sol11que_data, (bp))
-#define	SOL11QUE_DEL(X) (*((struct sol11que_obj *)(X))->que_ops->que_del) \
-	(((struct sol11que_obj *)(X))->sol11que_data)
+#define	QUE_INIT(X, lkarg) (*((struct que_obj *)(X))->que_ops->que_init) \
+	(((struct que_obj *)(X))->que_data, (lkarg))
+#define	QUE_FREE(X) (*((struct que_obj *)(X))->que_ops->que_free) ((X))
+#define	QUE_ADD(X, bp) (*((struct que_obj *)(X))->que_ops->que_ins) \
+	(((struct que_obj *)(X))->que_data, (bp))
+#define	QUE_DEL(X) (*((struct que_obj *)(X))->que_ops->que_del) \
+	(((struct que_obj *)(X))->que_data)
 
 #ifdef	__cplusplus
 }

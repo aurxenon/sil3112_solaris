@@ -35,7 +35,7 @@ extern "C" {
 
 #include <dktp/tgcom.h>
 
-struct	sol11dadk {
+struct	dadk {
 	struct tgdk_ext	*dad_extp;	/* back pointer to ext data	*/
 	struct scsi_device *dad_sd;	/* back pointer to SCSI_DEVICE 	*/
 
@@ -80,7 +80,7 @@ struct	sol11dadk {
 #define	DADK_RETRY_COUNT	5
 #define	DADK_SILENT		1
 
-#define	PKT2DADK(pktp)	((struct sol11dadk *)(pktp)->cp_dev_private)
+#define	PKT2DADK(pktp)	((struct dadk *)(pktp)->cp_dev_private)
 
 /*
  * packet action codes
@@ -91,31 +91,31 @@ struct	sol11dadk {
 #define	QUE_SENSE		3
 #define	JUST_RETURN		4
 
-int sol11dadk_init(opaque_t objp, opaque_t devp, opaque_t flcobjp,
+int dadk_init(opaque_t objp, opaque_t devp, opaque_t flcobjp,
     opaque_t queobjp, opaque_t bbhobjp, void *lkarg);
-int sol11dadk_free(struct tgdk_obj *dkobjp);
-int sol11dadk_probe(opaque_t objp, int kmsflg);
-int sol11dadk_attach(opaque_t objp);
-int sol11dadk_open(opaque_t objp, int flag);
-int sol11dadk_close(opaque_t objp);
-int sol11dadk_ioctl(opaque_t objp, dev_t dev, int cmd, intptr_t arg,
+int dadk_free(struct tgdk_obj *dkobjp);
+int dadk_probe(opaque_t objp, int kmsflg);
+int dadk_attach(opaque_t objp);
+int dadk_open(opaque_t objp, int flag);
+int dadk_close(opaque_t objp);
+int dadk_ioctl(opaque_t objp, dev_t dev, int cmd, intptr_t arg,
     int flag, cred_t *cred_p, int *rval_p);
-int sol11dadk_flushdone(struct buf *bp);
-int sol11dadk_strategy(opaque_t objp, struct buf *bp);
-int sol11dadk_setgeom(opaque_t objp, struct tgdk_geom *dkgeom_p);
-int sol11dadk_getgeom(opaque_t objp, struct tgdk_geom *dkgeom_p);
-struct tgdk_iob *sol11dadk_iob_alloc(opaque_t objp, daddr_t blkno,
+int dadk_flushdone(struct buf *bp);
+int dadk_strategy(opaque_t objp, struct buf *bp);
+int dadk_setgeom(opaque_t objp, struct tgdk_geom *dkgeom_p);
+int dadk_getgeom(opaque_t objp, struct tgdk_geom *dkgeom_p);
+struct tgdk_iob *dadk_iob_alloc(opaque_t objp, daddr_t blkno,
     ssize_t xfer, int kmsflg);
-int sol11dadk_iob_free(opaque_t objp, struct tgdk_iob *iobp);
-caddr_t sol11dadk_iob_htoc(opaque_t objp, struct tgdk_iob *iobp);
-caddr_t sol11dadk_iob_xfer(opaque_t objp, struct tgdk_iob *iobp, int rw);
-int sol11dadk_dump(opaque_t objp, struct buf *bp);
-int sol11dadk_getphygeom(opaque_t objp, struct tgdk_geom *dkgeom_p);
-int sol11dadk_set_bbhobj(opaque_t objp, opaque_t bbhobjp);
-int sol11dadk_check_media(opaque_t objp, int *state);
-static void sol11dadk_watch_thread(struct sol11dadk *sol11dadkp);
-int sol11dadk_inquiry(opaque_t objp, opaque_t *inqpp);
-void sol11dadk_cleanup(struct tgdk_obj *dkobjp);
+int dadk_iob_free(opaque_t objp, struct tgdk_iob *iobp);
+caddr_t dadk_iob_htoc(opaque_t objp, struct tgdk_iob *iobp);
+caddr_t dadk_iob_xfer(opaque_t objp, struct tgdk_iob *iobp, int rw);
+int dadk_dump(opaque_t objp, struct buf *bp);
+int dadk_getphygeom(opaque_t objp, struct tgdk_geom *dkgeom_p);
+int dadk_set_bbhobj(opaque_t objp, opaque_t bbhobjp);
+int dadk_check_media(opaque_t objp, int *state);
+static void dadk_watch_thread(struct dadk *dadkp);
+int dadk_inquiry(opaque_t objp, opaque_t *inqpp);
+void dadk_cleanup(struct tgdk_obj *dkobjp);
 
 #ifdef	__cplusplus
 }

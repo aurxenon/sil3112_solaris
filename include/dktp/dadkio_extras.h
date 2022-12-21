@@ -20,11 +20,12 @@
  * CDDL HEADER END
  */
 /*
- * Copyright (c) 1992 Sun Microsystems, Inc.  All Rights Reserved.
+ * Copyright 2005 Sun Microsystems, Inc.  All rights reserved.
+ * Use is subject to license terms.
  */
 
-#ifndef _SYS_DKTP_QUETYPES_H
-#define	_SYS_DKTP_QUETYPES_H
+#ifndef _SYS_DKTP_DADKIO_EXTRAS_H
+#define	_SYS_DKTP_DADKIO_EXTRAS_H
 
 #pragma ident	"%Z%%M%	%I%	%E% SMI"
 
@@ -32,15 +33,14 @@
 extern "C" {
 #endif
 
-struct que_data {
-	kmutex_t	q_mutex;
-	struct diskhd	q_tab;
-};
+#undef DERR_RESV
 
-#define	q_cnt		q_tab.b_bcount
+#define	DERR_ICRC	22	/* Interface CRC error -- new driver	*/
+				/* error code in ATA-4 and newer	*/
+#define	DERR_RESV	23	/* Reserved				*/
 
 #ifdef	__cplusplus
 }
 #endif
 
-#endif	/* _SYS_DKTP_QUETYPES_H */
+#endif	/* _SYS_DKTP_DADKIO_EXTRAS_H */
