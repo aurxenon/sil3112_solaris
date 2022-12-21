@@ -41,43 +41,43 @@ extern "C" {
 typedef struct L1el {
 	struct L1el	*le_nextp;
 	void		*le_datap;
-} sol11L1el_t;
+} L1el_t;
 
 #define	L1EL_INIT(lep)	((lep)->le_nextp = NULL, (lep)->le_datap = 0)
 
-typedef struct sol11L1_head {
-	sol11L1el_t	*l1_headp;
-	sol11L1el_t	*l1_tailp;
-} sol11L1_t;
+typedef struct L1_head {
+	L1el_t	*l1_headp;
+	L1el_t	*l1_tailp;
+} L1_t;
 
 #define	L1HEADER_INIT(lp) (((lp)->l1_headp = NULL), ((lp)->l1_tailp = NULL))
 #define	L1_EMPTY(lp)	((lp)->l1_headp == NULL)
 
-void	 sol11L1_add(sol11L1_t *lp, sol11L1el_t *lep, void *datap);
-void	 sol11L1_delete(sol11L1_t *lp, sol11L1el_t *lep);
-void	*sol11L1_remove(sol11L1_t *lp);
+void	 L1_add(L1_t *lp, L1el_t *lep, void *datap);
+void	 L1_delete(L1_t *lp, L1el_t *lep);
+void	*L1_remove(L1_t *lp);
 
 
 /*
  * A list of doubly linked elements
  */
 
-typedef struct sol11L2el {
-	struct	sol11L2el	*l2_nextp;
-	struct	sol11L2el	*l2_prevp;
+typedef struct L2el {
+	struct	L2el	*l2_nextp;
+	struct	L2el	*l2_prevp;
 	void		*l2_private;
-} sol11L2el_t;
+} L2el_t;
 
-#define	SOL11L2_INIT(headp)	\
+#define	L2_INIT(headp)	\
 	(((headp)->l2_nextp = (headp)), ((headp)->l2_prevp = (headp)))
 
-#define	SOL11L2_EMPTY(headp) ((headp)->l2_nextp == (headp))
+#define	L2_EMPTY(headp) ((headp)->l2_nextp == (headp))
 
-void	sol11L2_add(sol11L2el_t *headp, sol11L2el_t *elementp, void *private);
-void	sol11L2_delete(sol11L2el_t *elementp);
-void	sol11L2_add_head(sol11L2el_t *headp, sol11L2el_t *elementp, void *private);
-void	*sol11L2_remove_head(sol11L2el_t *headp);
-void	*sol11L2_next(sol11L2el_t *elementp);
+void	L2_add(L2el_t *headp, L2el_t *elementp, void *private);
+void	L2_delete(L2el_t *elementp);
+void	L2_add_head(L2el_t *headp, L2el_t *elementp, void *private);
+void	*L2_remove_head(L2el_t *headp);
+void	*L2_next(L2el_t *elementp);
 
 
 #ifdef	__cplusplus

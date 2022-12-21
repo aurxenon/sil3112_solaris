@@ -33,7 +33,7 @@
 
 #include "ghd.h"
 
-/* sol11ghd_poll() function codes: */
+/* ghd_poll() function codes: */
 typedef enum {
 	GHD_POLL_REQUEST,	/* wait for a specific request */
 	GHD_POLL_DEVICE,	/* wait for a specific device to idle */
@@ -43,14 +43,14 @@ typedef enum {
 /*
  * Local functions:
  */
-static	gcmd_t	*sol11ghd_doneq_get(ccc_t *cccp);
-static	void	 sol11ghd_doneq_pollmode_enter(ccc_t *cccp);
-static	void	 sol11ghd_doneq_pollmode_exit(ccc_t *cccp);
-static	uint_t	 sol11ghd_doneq_process(caddr_t arg);
-static	void	 sol11ghd_do_reset_notify_callbacks(ccc_t *cccp);
+static	gcmd_t	*ghd_doneq_get(ccc_t *cccp);
+static	void	 ghd_doneq_pollmode_enter(ccc_t *cccp);
+static	void	 ghd_doneq_pollmode_exit(ccc_t *cccp);
+static	uint_t	 ghd_doneq_process(caddr_t arg);
+static	void	 ghd_do_reset_notify_callbacks(ccc_t *cccp);
 
-static	uint_t	 sol11ghd_dummy_intr(caddr_t arg);
-static	int	 sol11ghd_poll(ccc_t *cccp, gpoll_t polltype, ulong_t polltime,
+static	uint_t	 ghd_dummy_intr(caddr_t arg);
+static	int	 ghd_poll(ccc_t *cccp, gpoll_t polltype, ulong_t polltime,
 			gcmd_t *poll_gcmdp, gtgt_t *gtgtp, void *intr_status);
 
 
@@ -58,29 +58,29 @@ static	int	 sol11ghd_poll(ccc_t *cccp, gpoll_t polltype, ulong_t polltime,
  * Local configuration variables
  */
 
-ulong_t	sol11ghd_tran_abort_timeout = 5;
-ulong_t	sol11ghd_tran_abort_lun_timeout = 5;
-ulong_t	sol11ghd_tran_reset_target_timeout = 5;
-ulong_t	sol11ghd_tran_reset_bus_timeout = 5;
+static ulong_t ghd_tran_abort_timeout = 5;
+static ulong_t ghd_tran_abort_lun_timeout = 5;
+static ulong_t ghd_tran_reset_target_timeout = 5;
+static ulong_t ghd_tran_reset_bus_timeout = 5;
 
 static int
-sol11ghd_doneq_init(ccc_t *cccp)
+ghd_doneq_init(ccc_t *cccp)
 {
 	ddi_iblock_cookie_t iblock;
 
-	SOL11L2_INIT(&cccp->ccc_doneq);
+	L2_INIT(&cccp->ccc_doneq);
 	cccp->ccc_hba_pollmode = TRUE;
 
 	if (ddi_add_softintr(cccp->ccc_hba_dip, DDI_SOFTINT_LOW,
 	    &cccp->ccc_doneq_softid, &iblock, NULL,
-	    sol11ghd_doneq_process, (caddr_t)cccp) != DDI_SUCCESS) {
-		GDBG_ERROR(("sol11ghd_doneq_init: add softintr failed cccp 0x%p\n",
+	    ghd_doneq_process, (caddr_t)cccp) != DDI_SUCCESS) {
+		GDBG_ERROR(("ghd_doneq_init: add softintr failed cccp 0x%p\n",
 		    (void *)cccp));
 		return (FALSE);
 	}
 
 	mutex_init(&cccp->ccc_doneq_mutex, NULL, MUTEX_DRIVER, iblock);
-	sol11ghd_doneq_pollmode_exit(cccp);
+	ghd_doneq_pollmode_exit(cccp);
 	return (TRUE);
 }
 
@@ -102,47 +102,47 @@ sol11ghd_complete(ccc_t *cccp, gcmd_t *gcmdp)
 
 
 /*
- * sol11ghd_doneq_put_head():
+ * ghd_doneq_put_head():
  *
  *	Mark the request done and prepend it to the doneq.
  *	See the GHD_DONEQ_PUT_HEAD_INLINE() macros in ghd.h for
  *	the actual code.
  */
 void
-sol11ghd_doneq_put_head(ccc_t *cccp, gcmd_t *gcmdp)
+ghd_doneq_put_head(ccc_t *cccp, gcmd_t *gcmdp)
 {
 	GHD_DONEQ_PUT_HEAD_INLINE(cccp, gcmdp)
 }
 
 /*
- * sol11ghd_doneq_put_tail():
+ * ghd_doneq_put_tail():
  *
  *	Mark the request done and append it to the doneq.
  *	See the GHD_DONEQ_PUT_TAIL_INLINE() macros in ghd.h for
  *	the actual code.
  */
 void
-sol11ghd_doneq_put_tail(ccc_t *cccp, gcmd_t *gcmdp)
+ghd_doneq_put_tail(ccc_t *cccp, gcmd_t *gcmdp)
 {
 	GHD_DONEQ_PUT_TAIL_INLINE(cccp, gcmdp)
 }
 
 static gcmd_t	*
-sol11ghd_doneq_get(ccc_t *cccp)
+ghd_doneq_get(ccc_t *cccp)
 {
 	kmutex_t *doneq_mutexp = &cccp->ccc_doneq_mutex;
 	gcmd_t	 *gcmdp;
 
 	mutex_enter(doneq_mutexp);
-	if ((gcmdp = sol11L2_next(&cccp->ccc_doneq)) != NULL)
-		sol11L2_delete(&gcmdp->cmd_q);
+	if ((gcmdp = L2_next(&cccp->ccc_doneq)) != NULL)
+		L2_delete(&gcmdp->cmd_q);
 	mutex_exit(doneq_mutexp);
 	return (gcmdp);
 }
 
 
 static void
-sol11ghd_doneq_pollmode_enter(ccc_t *cccp)
+ghd_doneq_pollmode_enter(ccc_t *cccp)
 {
 	kmutex_t *doneq_mutexp = &cccp->ccc_doneq_mutex;
 
@@ -153,7 +153,7 @@ sol11ghd_doneq_pollmode_enter(ccc_t *cccp)
 
 
 static void
-sol11ghd_doneq_pollmode_exit(ccc_t *cccp)
+ghd_doneq_pollmode_exit(ccc_t *cccp)
 {
 	kmutex_t *doneq_mutexp = &cccp->ccc_doneq_mutex;
 
@@ -162,7 +162,7 @@ sol11ghd_doneq_pollmode_exit(ccc_t *cccp)
 	mutex_exit(doneq_mutexp);
 
 	/* trigger software interrupt for the completion callbacks */
-	if (!SOL11L2_EMPTY(&cccp->ccc_doneq))
+	if (!L2_EMPTY(&cccp->ccc_doneq))
 		ddi_trigger_softintr(cccp->ccc_doneq_softid);
 }
 
@@ -171,7 +171,7 @@ sol11ghd_doneq_pollmode_exit(ccc_t *cccp)
 
 /*
  *
- * sol11ghd_doneq_process()
+ * ghd_doneq_process()
  *
  *	This function is called directly from the software interrupt
  *	handler.
@@ -182,7 +182,7 @@ sol11ghd_doneq_pollmode_exit(ccc_t *cccp)
  */
 
 static uint_t
-sol11ghd_doneq_process(caddr_t arg)
+ghd_doneq_process(caddr_t arg)
 {
 	ccc_t *cccp =	(ccc_t *)arg;
 	kmutex_t	*doneq_mutexp;
@@ -197,13 +197,13 @@ sol11ghd_doneq_process(caddr_t arg)
 		if (cccp->ccc_hba_pollmode)
 			break;
 		/* pop the first one from the done Q */
-		if ((gcmdp = sol11L2_next(&cccp->ccc_doneq)) == NULL)
+		if ((gcmdp = L2_next(&cccp->ccc_doneq)) == NULL)
 			break;
-		sol11L2_delete(&gcmdp->cmd_q);
+		L2_delete(&gcmdp->cmd_q);
 
 		if (gcmdp->cmd_flags & GCMDFLG_RESET_NOTIFY) {
 			/* special request; processed here and discarded */
-			sol11ghd_do_reset_notify_callbacks(cccp);
+			ghd_do_reset_notify_callbacks(cccp);
 			sol11ghd_gcmd_free(gcmdp);
 			mutex_exit(doneq_mutexp);
 			continue;
@@ -227,19 +227,19 @@ sol11ghd_doneq_process(caddr_t arg)
 }
 
 static void
-sol11ghd_do_reset_notify_callbacks(ccc_t *cccp)
+ghd_do_reset_notify_callbacks(ccc_t *cccp)
 {
-	sol11ghd_reset_notify_list_t *rnp;
-	sol11L2el_t *rnl = &cccp->ccc_reset_notify_list;
+	ghd_reset_notify_list_t *rnp;
+	L2el_t *rnl = &cccp->ccc_reset_notify_list;
 
 	ASSERT(mutex_owned(&cccp->ccc_doneq_mutex));
 
 	/* lock the reset notify list while we operate on it */
 	mutex_enter(&cccp->ccc_reset_notify_mutex);
 
-	for (rnp = (sol11ghd_reset_notify_list_t *)sol11L2_next(rnl);
+	for (rnp = (ghd_reset_notify_list_t *)L2_next(rnl);
 	    rnp != NULL;
-	    rnp = (sol11ghd_reset_notify_list_t *)sol11L2_next(&rnp->l2_link)) {
+	    rnp = (ghd_reset_notify_list_t *)L2_next(&rnp->l2_link)) {
 
 		/* don't call if HBA driver didn't set it */
 		if (cccp->ccc_hba_reset_notify_callback) {
@@ -264,7 +264,7 @@ sol11ghd_do_reset_notify_callbacks(ccc_t *cccp)
 
 /*ARGSUSED*/
 static uint_t
-sol11ghd_dummy_intr(caddr_t arg)
+ghd_dummy_intr(caddr_t arg)
 {
 	return (DDI_INTR_UNCLAIMED);
 }
@@ -334,7 +334,7 @@ sol11ghd_register(char *labelp,
 	 *	real interrupt handler
 	 */
 	if (ddi_add_intr(dip, inumber, &cccp->ccc_iblock, NULL,
-	    sol11ghd_dummy_intr, hba_handle) != DDI_SUCCESS) {
+	    ghd_dummy_intr, hba_handle) != DDI_SUCCESS) {
 		return (FALSE);
 	}
 	mutex_init(&cccp->ccc_hba_mutex, NULL, MUTEX_DRIVER, cccp->ccc_iblock);
@@ -360,7 +360,7 @@ sol11ghd_register(char *labelp,
 		return (FALSE);
 	}
 
-	if (sol11ghd_doneq_init(cccp)) {
+	if (ghd_doneq_init(cccp)) {
 		return (TRUE);
 	}
 
@@ -436,7 +436,7 @@ sol11ghd_intr(ccc_t *cccp, void *intr_status)
 }
 
 static int
-sol11ghd_poll(ccc_t	*cccp,
+ghd_poll(ccc_t	*cccp,
 	gpoll_t	 polltype,
 	ulong_t	 polltime,
 	gcmd_t	*poll_gcmdp,
@@ -444,14 +444,14 @@ sol11ghd_poll(ccc_t	*cccp,
 	void	*intr_status)
 {
 	gcmd_t	*gcmdp;
-	sol11L2el_t	 gcmd_hold_queue;
+	L2el_t	 gcmd_hold_queue;
 	int	 got_it = FALSE;
 	clock_t	 start_lbolt;
 	clock_t	 current_lbolt;
 
 
 	ASSERT(mutex_owned(&cccp->ccc_hba_mutex));
-	SOL11L2_INIT(&gcmd_hold_queue);
+	L2_INIT(&gcmd_hold_queue);
 
 	/* Que hora es? */
 	start_lbolt = ddi_get_lbolt();
@@ -497,7 +497,7 @@ sol11ghd_poll(ccc_t	*cccp,
 		/*
 		 * Unqueue all the completed requests, look for mine
 		 */
-		while (gcmdp = sol11ghd_doneq_get(cccp)) {
+		while (gcmdp = ghd_doneq_get(cccp)) {
 			/*
 			 * If we got one and it's my request, then
 			 * we're done.
@@ -508,7 +508,7 @@ sol11ghd_poll(ccc_t	*cccp,
 				continue;
 			}
 			/* fifo queue the other cmds on my local list */
-			sol11L2_add(&gcmd_hold_queue, &gcmdp->cmd_q, gcmdp);
+			L2_add(&gcmd_hold_queue, &gcmdp->cmd_q, gcmdp);
 		}
 
 
@@ -539,7 +539,7 @@ sol11ghd_poll(ccc_t	*cccp,
 		}
 	}
 
-	if (SOL11L2_EMPTY(&gcmd_hold_queue)) {
+	if (L2_EMPTY(&gcmd_hold_queue)) {
 		ASSERT(!mutex_owned(&cccp->ccc_waitq_mutex));
 		ASSERT(mutex_owned(&cccp->ccc_hba_mutex));
 		return (got_it);
@@ -549,8 +549,8 @@ sol11ghd_poll(ccc_t	*cccp,
 	 * copy the local gcmd_hold_queue back to the doneq so
 	 * that the order of completion callbacks is preserved
 	 */
-	while (gcmdp = sol11L2_next(&gcmd_hold_queue)) {
-		sol11L2_delete(&gcmdp->cmd_q);
+	while (gcmdp = L2_next(&gcmd_hold_queue)) {
+		L2_delete(&gcmdp->cmd_q);
 		GHD_DONEQ_PUT_TAIL(cccp, gcmdp);
 	}
 
@@ -578,7 +578,7 @@ sol11ghd_tran_abort(ccc_t *cccp, gcmd_t *gcmdp, gtgt_t *gtgtp, void *intr_status
 	 */
 
 	mutex_enter(&cccp->ccc_hba_mutex);
-	sol11ghd_doneq_pollmode_enter(cccp);
+	ghd_doneq_pollmode_enter(cccp);
 
 	switch (gcmdp->cmd_state) {
 	case GCMD_STATE_WAITQ:
@@ -604,14 +604,14 @@ sol11ghd_tran_abort(ccc_t *cccp, gcmd_t *gcmdp, gtgt_t *gtgtp, void *intr_status
 	sol11ghd_timer_newstate(cccp, gcmdp, gtgtp, action, GHD_TGTREQ);
 
 	/* wait for the abort to complete */
-	if (rc = sol11ghd_poll(cccp, GHD_POLL_REQUEST, sol11ghd_tran_abort_timeout,
+	if (rc = ghd_poll(cccp, GHD_POLL_REQUEST, ghd_tran_abort_timeout,
 	    gcmdp, gtgtp, intr_status)) {
 		gcmdp->cmd_state = GCMD_STATE_DONEQ;
 		GHD_DONEQ_PUT_TAIL(cccp, gcmdp);
 	}
 
 exit:
-	sol11ghd_doneq_pollmode_exit(cccp);
+	ghd_doneq_pollmode_exit(cccp);
 
 	mutex_enter(&cccp->ccc_waitq_mutex);
 	sol11ghd_waitq_process_and_mutex_exit(cccp);
@@ -637,16 +637,16 @@ sol11ghd_tran_abort_lun(ccc_t *cccp,	gtgt_t *gtgtp, void *intr_status)
 	 */
 
 	mutex_enter(&cccp->ccc_hba_mutex);
-	sol11ghd_doneq_pollmode_enter(cccp);
+	ghd_doneq_pollmode_enter(cccp);
 
 	/* send out the abort device request */
 	sol11ghd_timer_newstate(cccp, NULL, gtgtp, GACTION_ABORT_DEV, GHD_TGTREQ);
 
 	/* wait for the device to go idle */
-	rc = sol11ghd_poll(cccp, GHD_POLL_DEVICE, sol11ghd_tran_abort_lun_timeout,
+	rc = ghd_poll(cccp, GHD_POLL_DEVICE, ghd_tran_abort_lun_timeout,
 		NULL, gtgtp, intr_status);
 
-	sol11ghd_doneq_pollmode_exit(cccp);
+	ghd_doneq_pollmode_exit(cccp);
 
 	mutex_enter(&cccp->ccc_waitq_mutex);
 	sol11ghd_waitq_process_and_mutex_exit(cccp);
@@ -671,16 +671,16 @@ sol11ghd_tran_reset_target(ccc_t *cccp, gtgt_t *gtgtp, void *intr_status)
 
 
 	mutex_enter(&cccp->ccc_hba_mutex);
-	sol11ghd_doneq_pollmode_enter(cccp);
+	ghd_doneq_pollmode_enter(cccp);
 
 	/* send out the device reset request */
 	sol11ghd_timer_newstate(cccp, NULL, gtgtp, GACTION_RESET_TARGET, GHD_TGTREQ);
 
 	/* wait for the device to reset */
-	rc = sol11ghd_poll(cccp, GHD_POLL_DEVICE, sol11ghd_tran_reset_target_timeout,
+	rc = ghd_poll(cccp, GHD_POLL_DEVICE, ghd_tran_reset_target_timeout,
 		NULL, gtgtp, intr_status);
 
-	sol11ghd_doneq_pollmode_exit(cccp);
+	ghd_doneq_pollmode_exit(cccp);
 
 	mutex_enter(&cccp->ccc_waitq_mutex);
 	sol11ghd_waitq_process_and_mutex_exit(cccp);
@@ -703,7 +703,7 @@ sol11ghd_tran_reset_bus(ccc_t *cccp, gtgt_t *gtgtp, void *intr_status)
 	int	rc;
 
 	mutex_enter(&cccp->ccc_hba_mutex);
-	sol11ghd_doneq_pollmode_enter(cccp);
+	ghd_doneq_pollmode_enter(cccp);
 
 	/* send out the bus reset request */
 	sol11ghd_timer_newstate(cccp, NULL, gtgtp, GACTION_RESET_BUS, GHD_TGTREQ);
@@ -711,11 +711,11 @@ sol11ghd_tran_reset_bus(ccc_t *cccp, gtgt_t *gtgtp, void *intr_status)
 	/*
 	 * Wait for all active requests on this HBA to complete
 	 */
-	rc = sol11ghd_poll(cccp, GHD_POLL_ALL, sol11ghd_tran_reset_bus_timeout,
+	rc = ghd_poll(cccp, GHD_POLL_ALL, ghd_tran_reset_bus_timeout,
 		NULL, NULL, intr_status);
 
 
-	sol11ghd_doneq_pollmode_exit(cccp);
+	ghd_doneq_pollmode_exit(cccp);
 
 	mutex_enter(&cccp->ccc_waitq_mutex);
 	sol11ghd_waitq_process_and_mutex_exit(cccp);
@@ -751,7 +751,7 @@ sol11ghd_transport(ccc_t	*cccp,
 		/*
 		 * Lock the doneq so no other thread flushes the Q.
 		 */
-		sol11ghd_doneq_pollmode_enter(cccp);
+		ghd_doneq_pollmode_enter(cccp);
 	}
 #if defined(GHD_DEBUG) || defined(__lint)
 	else {
@@ -765,7 +765,7 @@ sol11ghd_transport(ccc_t	*cccp,
 	 */
 	gcmdp->cmd_waitq_level = 1;
 	mutex_enter(&cccp->ccc_waitq_mutex);
-	sol11L2_add(&GDEV_QHEAD(gdevp), &gcmdp->cmd_q, gcmdp);
+	L2_add(&GDEV_QHEAD(gdevp), &gcmdp->cmd_q, gcmdp);
 
 	/*
 	 * Add this request to the packet timer active list and start its
@@ -810,13 +810,13 @@ sol11ghd_transport(ccc_t	*cccp,
 
 	/*
 	 * If polled mode (FLAG_NOINTR specified in scsi_pkt flags),
-	 * then sol11ghd_poll() waits until the request completes or times out
+	 * then ghd_poll() waits until the request completes or times out
 	 * before returning.
 	 */
 
 	mutex_exit(&cccp->ccc_waitq_mutex);
-	(void) sol11ghd_poll(cccp, GHD_POLL_REQUEST, 0, gcmdp, gtgtp, intr_status);
-	sol11ghd_doneq_pollmode_exit(cccp);
+	(void) ghd_poll(cccp, GHD_POLL_REQUEST, 0, gcmdp, gtgtp, intr_status);
+	ghd_doneq_pollmode_exit(cccp);
 
 	mutex_enter(&cccp->ccc_waitq_mutex);
 	sol11ghd_waitq_process_and_mutex_exit(cccp);
@@ -828,27 +828,27 @@ sol11ghd_transport(ccc_t	*cccp,
 	return (TRAN_ACCEPT);
 }
 
-int sol11ghd_reset_notify(ccc_t 	*cccp,
+int ghd_reset_notify(ccc_t 	*cccp,
 			gtgt_t *gtgtp,
 			int 	flag,
 			void 	(*callback)(caddr_t),
 			caddr_t arg)
 {
-	sol11ghd_reset_notify_list_t *rnp;
+	ghd_reset_notify_list_t *rnp;
 	int rc = FALSE;
 
 	switch (flag) {
 
 	case SCSI_RESET_NOTIFY:
 
-		rnp = (sol11ghd_reset_notify_list_t *)kmem_zalloc(sizeof (*rnp),
+		rnp = (ghd_reset_notify_list_t *)kmem_zalloc(sizeof (*rnp),
 		    KM_SLEEP);
 		rnp->gtgtp = gtgtp;
 		rnp->callback = callback;
 		rnp->arg = arg;
 
 		mutex_enter(&cccp->ccc_reset_notify_mutex);
-		sol11L2_add(&cccp->ccc_reset_notify_list, &rnp->l2_link,
+		L2_add(&cccp->ccc_reset_notify_list, &rnp->l2_link,
 		    (void *)rnp);
 		mutex_exit(&cccp->ccc_reset_notify_mutex);
 
@@ -859,14 +859,14 @@ int sol11ghd_reset_notify(ccc_t 	*cccp,
 	case SCSI_RESET_CANCEL:
 
 		mutex_enter(&cccp->ccc_reset_notify_mutex);
-		for (rnp = (sol11ghd_reset_notify_list_t *)
-			sol11L2_next(&cccp->ccc_reset_notify_list);
+		for (rnp = (ghd_reset_notify_list_t *)
+			L2_next(&cccp->ccc_reset_notify_list);
 		    rnp != NULL;
-		    rnp = (sol11ghd_reset_notify_list_t *)sol11L2_next(&rnp->l2_link)) {
+		    rnp = (ghd_reset_notify_list_t *)L2_next(&rnp->l2_link)) {
 			if (rnp->gtgtp == gtgtp &&
 			    rnp->callback == callback &&
 			    rnp->arg == arg) {
-				sol11L2_delete(&rnp->l2_link);
+				L2_delete(&rnp->l2_link);
 				kmem_free(rnp, sizeof (*rnp));
 				rc = TRUE;
 			}
@@ -888,7 +888,7 @@ int sol11ghd_reset_notify(ccc_t 	*cccp,
  */
 
 void
-sol11ghd_freeze_waitq(ccc_t *cccp, int delay)
+ghd_freeze_waitq(ccc_t *cccp, int delay)
 {
 	ASSERT(mutex_owned(&cccp->ccc_hba_mutex));
 
@@ -902,7 +902,7 @@ sol11ghd_freeze_waitq(ccc_t *cccp, int delay)
 }
 
 void
-sol11ghd_queue_hold(ccc_t *cccp)
+ghd_queue_hold(ccc_t *cccp)
 {
 	ASSERT(mutex_owned(&cccp->ccc_hba_mutex));
 
@@ -912,7 +912,7 @@ sol11ghd_queue_hold(ccc_t *cccp)
 }
 
 void
-sol11ghd_queue_unhold(ccc_t *cccp)
+ghd_queue_unhold(ccc_t *cccp)
 {
 	ASSERT(mutex_owned(&cccp->ccc_hba_mutex));
 
@@ -928,7 +928,7 @@ sol11ghd_queue_unhold(ccc_t *cccp)
  */
 
 void
-sol11ghd_trigger_reset_notify(ccc_t *cccp)
+ghd_trigger_reset_notify(ccc_t *cccp)
 {
 	gcmd_t *gcmdp;
 

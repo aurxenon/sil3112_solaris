@@ -147,7 +147,7 @@ int	ata_id_debug = FALSE;
  */
 int	ata_capability_data = FALSE;
 
-#define	ATAPRT(fmt)	ghd_err fmt
+#define	ATAPRT(fmt)	sol11ghd_err fmt
 
 /*
  * DMA selection message pointers
@@ -372,7 +372,7 @@ _init(void)
 	 * Initialize the per driver timer info.
 	 */
 
-	ghd_timer_init(&ata_timer_conf, drv_usectohz(ata_watchdog_usec));
+	sol11ghd_timer_init(&ata_timer_conf, drv_usectohz(ata_watchdog_usec));
 
 	return (err);
 }
@@ -383,7 +383,7 @@ _fini(void)
 	int err;
 
 	if ((err = mod_remove(&modlinkage)) == 0) {
-		ghd_timer_fini(&ata_timer_conf);
+		sol11ghd_timer_fini(&ata_timer_conf);
 		scsi_hba_fini(&modlinkage);
 		ddi_soft_state_fini(&ata_state);
 	}
@@ -924,7 +924,7 @@ ata_timeout_func(
 		if (ata_pktp != NULL) {
 			ata_pktp->ap_flags |= AP_ABORT;
 		}
-		ghd_complete(&ata_ctlp->ac_ccc, gcmdp);
+		sol11ghd_complete(&ata_ctlp->ac_ccc, gcmdp);
 		return (TRUE);
 
 	case GACTION_EARLY_TIMEOUT:
@@ -932,7 +932,7 @@ ata_timeout_func(
 		if (ata_pktp != NULL) {
 			ata_pktp->ap_flags |= AP_TIMEOUT;
 		}
-		ghd_complete(&ata_ctlp->ac_ccc, gcmdp);
+		sol11ghd_complete(&ata_ctlp->ac_ccc, gcmdp);
 		return (TRUE);
 
 	case GACTION_RESET_TARGET:
@@ -1100,7 +1100,7 @@ ata_init_controller(
 
 	GHD_WAITQ_INIT(&ata_ctlp->ac_ccc.ccc_waitq, NULL, 1);
 
-	if (!ghd_register("sol11ata", &ata_ctlp->ac_ccc, dip, 0, ata_ctlp,
+	if (!sol11ghd_register("sol11ata", &ata_ctlp->ac_ccc, dip, 0, ata_ctlp,
 			atapi_ccballoc, atapi_ccbfree,
 			ata_pciide_dma_sg_func, ata_hba_start,
 			ata_hba_complete, ata_intr,
@@ -1133,7 +1133,7 @@ ata_destroy_controller(
 
 	/* destroy ghd */
 	if (ata_ctlp->ac_flags & AC_GHD_INIT)
-		ghd_unregister(&ata_ctlp->ac_ccc);
+		sol11ghd_unregister(&ata_ctlp->ac_ccc);
 
 	/* free the pciide buffer (if any) */
 	ata_pciide_free(ata_ctlp);
@@ -2498,7 +2498,7 @@ all_done:
 	ata_ctlp->ac_active_pktp = NULL;
 	ata_ctlp->ac_active_drvp = NULL;
 	if (APKT2GCMD(ata_pktp) != (gcmd_t *)0) {
-		ghd_complete(&ata_ctlp->ac_ccc, APKT2GCMD(ata_pktp));
+		sol11ghd_complete(&ata_ctlp->ac_ccc, APKT2GCMD(ata_pktp));
 		if (DoneFlgp)
 			*DoneFlgp = TRUE;
 	}
@@ -2628,7 +2628,7 @@ fsm_done:
 			rc = FALSE;
 	}
 
-	/* If DoneFlg is TRUE, it means that ghd_complete() function */
+	/* If DoneFlg is TRUE, it means that sol11ghd_complete() function */
 	/* has been already called. In this case ignore any errors and */
 	/* return TRUE to the caller, otherwise return the value of rc */
 	/* to the caller */
@@ -2749,7 +2749,7 @@ ata_intr(
 
 	ata_ctlp = (ata_ctl_t *)arg;
 
-	return (ghd_intr(&ata_ctlp->ac_ccc, (void *)&one_shot));
+	return (sol11ghd_intr(&ata_ctlp->ac_ccc, (void *)&one_shot));
 }
 
 
@@ -3070,7 +3070,7 @@ ata_check_pciide_blacklist(
 	/*
 	 * then check the built-in blacklist
 	 */
-	for (blp = ata_pciide_blacklist; blp->b_vendorid; blp++) {
+	for (blp = sol11ata_pciide_blacklist; blp->b_vendorid; blp++) {
 		if ((vendorid & blp->b_vmask) != blp->b_vendorid)
 			continue;
 		if ((deviceid & blp->b_dmask) != blp->b_deviceid)
@@ -3089,7 +3089,7 @@ ata_check_drive_blacklist(
 {
 	atabl_t	*blp;
 
-	for (blp = ata_drive_blacklist; blp->b_model; blp++) {
+	for (blp = sol11ata_drive_blacklist; blp->b_model; blp++) {
 		if (!ata_strncmp(blp->b_model, aidp->ai_model,
 				sizeof (aidp->ai_model)))
 			continue;
@@ -3119,7 +3119,7 @@ ata_queue_cmd(
 	gcmd_t		*gcmdp;
 	int		 rc;
 
-	if (!(gcmdp = ghd_gcmd_alloc(gtgtp, sizeof (*ata_pktp), TRUE))) {
+	if (!(gcmdp = sol11ghd_gcmd_alloc(gtgtp, sizeof (*ata_pktp), TRUE))) {
 		ADBG_ERROR(("atapi_id_update alloc failed\n"));
 		return (FALSE);
 	}
@@ -3143,7 +3143,7 @@ ata_queue_cmd(
 	 * add it to the queue, when it gets to the front the
 	 * ap_start function is called.
 	 */
-	rc = ghd_transport(&ata_ctlp->ac_ccc, gcmdp, gcmdp->cmd_gtgtp,
+	rc = sol11ghd_transport(&ata_ctlp->ac_ccc, gcmdp, gcmdp->cmd_gtgtp,
 		0, TRUE, NULL);
 
 	if (rc != TRAN_ACCEPT) {

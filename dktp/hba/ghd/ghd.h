@@ -98,13 +98,13 @@ typedef enum {
  * the common portion of the Command Control Block
  */
 
-typedef struct sol11ghd_cmd {
-	sol11L2el_t		 cmd_q;		/* link for for done/active CCB Qs */
+typedef struct ghd_cmd {
+	L2el_t		 cmd_q;		/* link for for done/active CCB Qs */
 	cmdstate_t	 cmd_state;	/* request's current state */
 	ulong_t		 cmd_waitq_level; /* which wait Q this request is on */
 	int		 cmd_flags;	/* generic magic info */
 
-	sol11L2el_t		 cmd_timer_link; /* ccb timer doubly linked list */
+	L2el_t		 cmd_timer_link; /* ccb timer doubly linked list */
 	ulong_t		 cmd_start_time; /* lbolt at start of request */
 	ulong_t		 cmd_timeout;	/* how long to wait */
 
@@ -136,8 +136,8 @@ typedef struct sol11ghd_cmd {
  */
 
 #define	GHD_GCMD_INIT(gcmdp, cmdp, gtgtp)	\
-	(SOL11L2_INIT(&(gcmdp)->cmd_q),		\
-	SOL11L2_INIT(&(gcmdp)->cmd_timer_link),	\
+	(L2_INIT(&(gcmdp)->cmd_q),		\
+	L2_INIT(&(gcmdp)->cmd_timer_link),	\
 	(gcmdp)->cmd_private = (cmdp),		\
 	(gcmdp)->cmd_gtgtp = (gtgtp)		\
 )
@@ -165,7 +165,7 @@ typedef struct cmd_ctl {
 	char		*ccc_label;	/* name of this HBA driver */
 
 	kmutex_t ccc_activel_mutex;	/* mutex to protect list ... */
-	sol11L2el_t	 ccc_activel;		/* ... list of active CMD/CCBs */
+	L2el_t	 ccc_activel;		/* ... list of active CMD/CCBs */
 
 	dev_info_t *ccc_hba_dip;
 	ddi_iblock_cookie_t ccc_iblock;
@@ -174,7 +174,7 @@ typedef struct cmd_ctl {
 	kmutex_t ccc_hba_mutex;		/* mutex for HBA soft-state */
 	int	 ccc_hba_pollmode;	/* FLAG_NOINTR mode active? */
 
-	sol11L1_t	 ccc_devs;		/* unsorted list of attached devs */
+	L1_t	 ccc_devs;		/* unsorted list of attached devs */
 	kmutex_t ccc_waitq_mutex;	/* mutex to protect device wait Qs */
 	Q_t	 ccc_waitq;		/* the HBA's wait queue */
 	clock_t	 ccc_waitq_freezetime;	/* time the waitq was frozen, ticks */
@@ -182,7 +182,7 @@ typedef struct cmd_ctl {
 
 	ddi_softintr_t  ccc_doneq_softid; /* ID for doneq softintr */
 	kmutex_t ccc_doneq_mutex;	/* mutex to protect the doneq */
-	sol11L2el_t	 ccc_doneq; 		/* completed cmd_t's */
+	L2el_t	 ccc_doneq; 		/* completed cmd_t's */
 
 	void	*ccc_hba_handle;
 	int	(*ccc_ccballoc)();	/* alloc/init gcmd and ccb */
@@ -197,7 +197,7 @@ typedef struct cmd_ctl {
 	void 	(*ccc_hba_reset_notify_callback)(gtgt_t *gtgtp,
 			void (*callback)(caddr_t),
 			caddr_t arg);
-	sol11L2el_t	 ccc_reset_notify_list;	/* list of reset notifications */
+	L2el_t	 ccc_reset_notify_list;	/* list of reset notifications */
 	kmutex_t ccc_reset_notify_mutex; /* and a mutex to protect it */
 	char	 ccc_timeout_pending;	/* timeout Q's softintr is triggered */
 	char	 ccc_waitq_frozen;	/* ccc_waitq_freezetime non-null */
@@ -211,8 +211,8 @@ typedef struct cmd_ctl {
 /* Initialize the HBA's list headers */
 #define	CCCP_INIT(cccp)	{				\
 		L1HEADER_INIT(&(cccp)->ccc_devs);	\
-		SOL11L2_INIT(&(cccp)->ccc_doneq);		\
-		SOL11L2_INIT(&(cccp)->ccc_reset_notify_list);	\
+		L2_INIT(&(cccp)->ccc_doneq);		\
+		L2_INIT(&(cccp)->ccc_reset_notify_list);	\
 }
 
 
@@ -228,12 +228,12 @@ typedef struct cmd_ctl {
  * gtgtp isn't needed except for debug.
  */
 
-typedef struct sol11ghd_reset_notify_list {
+typedef struct ghd_reset_notify_list {
 	gtgt_t *gtgtp;
 	void (*callback)(caddr_t);
 	caddr_t	arg;
-	sol11L2el_t l2_link;
-} sol11ghd_reset_notify_list_t;
+	L2el_t l2_link;
+} ghd_reset_notify_list_t;
 
 /* ******************************************************************* */
 
@@ -244,8 +244,8 @@ typedef struct sol11ghd_reset_notify_list {
  * GHD Entry Points
  */
 void	 sol11ghd_complete(ccc_t *cccp, gcmd_t *cmdp);
-void	 sol11ghd_doneq_put_head(ccc_t *cccp, gcmd_t *cmdp);
-void	 sol11ghd_doneq_put_tail(ccc_t *cccp, gcmd_t *cmdp);
+void	 ghd_doneq_put_head(ccc_t *cccp, gcmd_t *cmdp);
+void	 ghd_doneq_put_tail(ccc_t *cccp, gcmd_t *cmdp);
 
 int	 sol11ghd_intr(ccc_t *cccp, void *status);
 int	 sol11ghd_register(char *, ccc_t *, dev_info_t *, int, void *hba_handle,
@@ -274,13 +274,13 @@ int	sol11ghd_tran_abort(ccc_t *cccp, gcmd_t *cmdp, gtgt_t *gtgtp,
 int	sol11ghd_tran_abort_lun(ccc_t *cccp, gtgt_t *gtgtp, void *intr_status);
 int	sol11ghd_tran_reset_target(ccc_t *cccp, gtgt_t *gtgtp, void *intr_status);
 int	sol11ghd_tran_reset_bus(ccc_t *cccp, gtgt_t *gtgtp, void *intr_status);
-int	sol11ghd_reset_notify(ccc_t *cccp, gtgt_t *gtgtp, int flag,
+int	ghd_reset_notify(ccc_t *cccp, gtgt_t *gtgtp, int flag,
 	    void (*callback)(caddr_t), caddr_t arg);
-void	sol11ghd_freeze_waitq(ccc_t *cccp, int delay);
-void	sol11ghd_trigger_reset_notify(ccc_t *cccp);
+void	ghd_freeze_waitq(ccc_t *cccp, int delay);
+void	ghd_trigger_reset_notify(ccc_t *cccp);
 
-void	 sol11ghd_queue_hold(ccc_t *cccp);
-void	 sol11ghd_queue_unhold(ccc_t *cccp);
+void	 ghd_queue_hold(ccc_t *cccp);
+void	 ghd_queue_unhold(ccc_t *cccp);
 
 /*
  * Allocate a gcmd_t wrapper and HBA private area
@@ -349,8 +349,8 @@ void	 sol11ghd_waitq_process_and_mutex_exit(ccc_t *);
 #else
 #define	GHD_COMPLETE(cccp, gcmpd)	sol11ghd_complete(cccp, gcmdp)
 #define	GHD_TIMER_STOP(cccp, gcmdp)	sol11ghd_timer_stop(cccp, gcmdp)
-#define	GHD_DONEQ_PUT_HEAD(cccp, gcmdp)	sol11ghd_doneq_put_head(cccp, gcmdp)
-#define	GHD_DONEQ_PUT_TAIL(cccp, gcmdp)	sol11ghd_doneq_put_tail(cccp, gcmdp)
+#define	GHD_DONEQ_PUT_HEAD(cccp, gcmdp)	ghd_doneq_put_head(cccp, gcmdp)
+#define	GHD_DONEQ_PUT_TAIL(cccp, gcmdp)	ghd_doneq_put_tail(cccp, gcmdp)
 #endif
 
 /*
@@ -367,7 +367,7 @@ void	 sol11ghd_waitq_process_and_mutex_exit(ccc_t *);
 #define	GHD_TIMER_STOP_INLINE(cccp, gcmdp)	\
 {						\
 	mutex_enter(&(cccp)->ccc_activel_mutex);\
-	sol11L2_delete(&(gcmdp)->cmd_timer_link);	\
+	L2_delete(&(gcmdp)->cmd_timer_link);	\
 	mutex_exit(&(cccp)->ccc_activel_mutex);	\
 }
 
@@ -380,7 +380,7 @@ void	 sol11ghd_waitq_process_and_mutex_exit(ccc_t *);
 								\
 	mutex_enter(doneq_mutexp);				\
 	(gcmdp)->cmd_state = GCMD_STATE_DONEQ;			\
-	sol11L2_add_head(&(cccp)->ccc_doneq, &(gcmdp)->cmd_q, (gcmdp));	\
+	L2_add_head(&(cccp)->ccc_doneq, &(gcmdp)->cmd_q, (gcmdp));	\
 	if (!(cccp)->ccc_hba_pollmode)				\
 		ddi_trigger_softintr((cccp)->ccc_doneq_softid);	\
 	mutex_exit(doneq_mutexp);				\
@@ -395,7 +395,7 @@ void	 sol11ghd_waitq_process_and_mutex_exit(ccc_t *);
 								\
 	mutex_enter(doneq_mutexp);				\
 	(gcmdp)->cmd_state = GCMD_STATE_DONEQ;			\
-	sol11L2_add(&(cccp)->ccc_doneq, &(gcmdp)->cmd_q, (gcmdp));	\
+	L2_add(&(cccp)->ccc_doneq, &(gcmdp)->cmd_q, (gcmdp));	\
 	if (!(cccp)->ccc_hba_pollmode)				\
 		ddi_trigger_softintr((cccp)->ccc_doneq_softid);	\
 	mutex_exit(doneq_mutexp);				\

@@ -38,28 +38,28 @@ extern "C" {
  * there's a waitq_t per target device and one per HBA
  */
 
-typedef struct sol11ghd_q {
-	struct sol11ghd_q *Q_nextp;	/* ptr to next level of queuing */
-	sol11L2el_t	Q_qhead;	/* Q of waiting gcmds */
+typedef struct ghd_q {
+	struct ghd_q *Q_nextp;	/* ptr to next level of queuing */
+	L2el_t	Q_qhead;	/* Q of waiting gcmds */
 	long	Q_nactive;	/* current # of outstanding gcmds */
 	long	Q_maxactive;	/* max gcmds to release concurrently */
 } Q_t;
 
 #define	GHD_WAITQ_INIT(qp, nxtp, maxactive)	\
-	(SOL11L2_INIT(&(qp)->Q_qhead), 		\
+	(L2_INIT(&(qp)->Q_qhead), 		\
 	(qp)->Q_nextp = (nxtp),			\
 	(qp)->Q_nactive = 0,			\
 	(qp)->Q_maxactive = (maxactive))
 /*
  * one per target device
  */
-typedef struct sol11ghd_device {
+typedef struct ghd_device {
 	Q_t	gd_waitq;	/* the queue structure for this device */
-	sol11L1el_t	gd_devlist;	/* all gdevs for a HBA are linked together */
+	L1el_t	gd_devlist;	/* all gdevs for a HBA are linked together */
 	ulong_t	gd_target;	/*  ... and are located by searching for */
 	ulong_t	gd_lun;		/*  ... a match on the (target,lun) values */
 
-	sol11L1_t 	gd_ilist;	/* linked list of instances for this device */
+	L1_t 	gd_ilist;	/* linked list of instances for this device */
 	ulong_t	gd_ninstances;	/* # of instances for this device */
 } gdev_t;
 
@@ -85,17 +85,17 @@ typedef struct sol11ghd_device {
 	L1EL_INIT(&gdevp->gd_devlist);					\
 	L1HEADER_INIT(&gdevp->gd_ilist);				\
 	/* add the per device structure to the HBA's device list */	\
-	sol11L1_add(&(cccp)->ccc_devs, &(gdevp)->gd_devlist, (gdevp));	\
+	L1_add(&(cccp)->ccc_devs, &(gdevp)->gd_devlist, (gdevp));	\
 }
 
 #define	GDEV_QDETACH(gdevp, cccp)			\
-	sol11L1_delete(&(cccp)->ccc_devs, &(gdevp)->gd_devlist)
+	L1_delete(&(cccp)->ccc_devs, &(gdevp)->gd_devlist)
 
 /*
  * GHD target structure, one per attached target driver instance
  */
-typedef	struct	sol11ghd_target_instance {
-	sol11L1el_t	 gt_ilist;	/* list of other instances for this device */
+typedef	struct	ghd_target_instance {
+	L1el_t	 gt_ilist;	/* list of other instances for this device */
 	gdev_t	*gt_gdevp;	/* ptr to info shared by all instances */
 
 	/* this would be ccc_t, but is circular with ghd.h.  sigh. */
@@ -118,14 +118,14 @@ typedef	struct	sol11ghd_target_instance {
 /* Add the per instance structure to the per device list  */
 #define	GTGT_ATTACH(gtgtp, gdevp)	{				\
 	(gdevp)->gd_ninstances++;					\
-	sol11L1_add(&(gdevp)->gd_ilist, &(gtgtp)->gt_ilist, (gtgtp));	\
+	L1_add(&(gdevp)->gd_ilist, &(gtgtp)->gt_ilist, (gtgtp));	\
 }
 
 
 /* remove this per-instance-structure from the device list */
 #define	GTGT_DEATTACH(gtgtp, gdevp)	{			\
 	(gdevp)->gd_ninstances--;				\
-	sol11L1_delete(&(gdevp)->gd_ilist, &(gtgtp)->gt_ilist);	\
+	L1_delete(&(gdevp)->gd_ilist, &(gtgtp)->gt_ilist);	\
 }
 
 #ifdef	__cplusplus

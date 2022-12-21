@@ -38,16 +38,16 @@ extern "C" {
 
 #include "ghd.h"
 
-int	sol11ghd_dmaget_attr(ccc_t *cccp, gcmd_t *gcmdp, long count, int sg_size,
+int	ghd_dmaget_attr(ccc_t *cccp, gcmd_t *gcmdp, long count, int sg_size,
 			uint_t *xfer);
 
-int	sol11ghd_dma_buf_bind_attr(ccc_t *ccp, gcmd_t *gcmdp, struct buf *bp,
+int	ghd_dma_buf_bind_attr(ccc_t *ccp, gcmd_t *gcmdp, struct buf *bp,
 		int dma_flags, int (*callback)(), caddr_t arg,
 		ddi_dma_attr_t *sg_attrp);
 
-void	sol11ghd_dmafree_attr(gcmd_t *gcmdp);
+void	ghd_dmafree_attr(gcmd_t *gcmdp);
 
-uint_t	sol11ghd_dmaget_next_attr(ccc_t *cccp, gcmd_t *gcmdp, long max_transfer_cnt,
+uint_t	ghd_dmaget_next_attr(ccc_t *cccp, gcmd_t *gcmdp, long max_transfer_cnt,
 		int sg_size, ddi_dma_cookie_t cookie);
 
 #ifdef	__cplusplus

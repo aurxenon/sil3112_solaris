@@ -50,7 +50,7 @@ void		 sol11ghd_tran_sync_pkt(struct scsi_address *ap,
 void		 sol11ghd_pktfree(ccc_t *cccp, struct scsi_address *ap,
 			struct scsi_pkt *pktp);
 
-struct scsi_pkt *sol11ghd_tran_init_pkt_attr(ccc_t *cccp, struct scsi_address *ap,
+struct scsi_pkt *ghd_tran_init_pkt_attr(ccc_t *cccp, struct scsi_address *ap,
 			struct scsi_pkt *pktp, struct buf *bp,
 			int cmdlen, int statuslen, int tgtlen,
 			int flags, int (*callback)(),

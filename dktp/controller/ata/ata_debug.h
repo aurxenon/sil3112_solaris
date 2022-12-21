@@ -44,7 +44,7 @@ extern "C" {
 #ifdef	ATA_DEBUG
 #define	ADBG_ERROR(fmt)		ADBG_FLAG_CHK(ADBG_FLAG_ERROR, fmt)
 #else
-#define	ADBG_ERROR(fmt)	ghd_err fmt
+#define	ADBG_ERROR(fmt)	sol11ghd_err fmt
 #endif
 
 /*

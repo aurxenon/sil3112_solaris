@@ -35,7 +35,7 @@
 
 
 void
-sol11L1_add(sol11L1_t *lp, sol11L1el_t *lep, void *datap)
+L1_add(L1_t *lp, L1el_t *lep, void *datap)
 {
 	/* init the list element */
 	lep->le_nextp = NULL;
@@ -61,9 +61,9 @@ sol11L1_add(sol11L1_t *lp, sol11L1el_t *lep, void *datap)
  */
 
 void
-sol11L1_delete(sol11L1_t *lp, sol11L1el_t *lep)
+L1_delete(L1_t *lp, L1el_t *lep)
 {
-	sol11L1el_t	*prevp;
+	L1el_t	*prevp;
 
 	if (lp->l1_headp == lep) {
 		/* it's the first entry in the list */
@@ -86,16 +86,16 @@ sol11L1_delete(sol11L1_t *lp, sol11L1el_t *lep)
 
 
 /*
- * sol11L1_remove()
+ * L1_remove()
  *
  *	Remove the entry at the head of the list (if any).
  *
  */
 
 void *
-sol11L1_remove(sol11L1_t *lp)
+L1_remove(L1_t *lp)
 {
-	sol11L1el_t	*lep;
+	L1el_t	*lep;
 
 	/* pop the first one off the list head */
 	if ((lep = lp->l1_headp) == NULL) {
@@ -113,7 +113,7 @@ sol11L1_remove(sol11L1_t *lp)
 
 
 void
-sol11L2_add(sol11L2el_t *headp, sol11L2el_t *elementp, void *private)
+L2_add(L2el_t *headp, L2el_t *elementp, void *private)
 {
 
 	ASSERT(headp != NULL && elementp != NULL);
@@ -129,7 +129,7 @@ sol11L2_add(sol11L2el_t *headp, sol11L2el_t *elementp, void *private)
 }
 
 void
-sol11L2_delete(sol11L2el_t *elementp)
+L2_delete(L2el_t *elementp)
 {
 
 	ASSERT(elementp != NULL);
@@ -148,7 +148,7 @@ sol11L2_delete(sol11L2el_t *elementp)
 
 
 void
-sol11L2_add_head(sol11L2el_t *headp, sol11L2el_t *elementp, void *private)
+L2_add_head(L2el_t *headp, L2el_t *elementp, void *private)
 {
 
 	ASSERT(headp != NULL && elementp != NULL);
@@ -166,20 +166,20 @@ sol11L2_add_head(sol11L2el_t *headp, sol11L2el_t *elementp, void *private)
 
 
 /*
- * sol11L2_remove()
+ * L2_remove()
  *
  *	Remove the entry from the head of the list (if any).
  *
  */
 
 void *
-sol11L2_remove_head(sol11L2el_t *headp)
+L2_remove_head(L2el_t *headp)
 {
-	sol11L2el_t *elementp;
+	L2el_t *elementp;
 
 	ASSERT(headp != NULL);
 
-	if (SOL11L2_EMPTY(headp))
+	if (L2_EMPTY(headp))
 		return (NULL);
 
 	elementp = headp->l2_nextp;
@@ -195,12 +195,12 @@ sol11L2_remove_head(sol11L2el_t *headp)
 }
 
 void *
-sol11L2_next(sol11L2el_t *elementp)
+L2_next(L2el_t *elementp)
 {
 
 	ASSERT(elementp != NULL);
 
-	if (SOL11L2_EMPTY(elementp))
+	if (L2_EMPTY(elementp))
 		return (NULL);
 	return (elementp->l2_nextp->l2_private);
 }

@@ -822,7 +822,7 @@ sol11ata_disk_bus_ctl(
 			return (DDI_FAILURE);
 		}
 
-		gtgtp = ghd_target_init(d, cdip, &ata_ctlp->ac_ccc,
+		gtgtp = sol11ghd_target_init(d, cdip, &ata_ctlp->ac_ccc,
 					sizeof (ata_tgt_t), ata_ctlp,
 					ata_drvp->ad_targ,
 					ata_drvp->ad_lun);
@@ -858,7 +858,7 @@ sol11ata_disk_bus_ctl(
 		ctlobjp = (struct ctl_obj *)devp->sd_address.a_hba_tran;
 		gtgtp = ctlobjp->c_data;
 
-		ghd_target_free(d, cdip, &GTGTP2ATAP(gtgtp)->ac_ccc, gtgtp);
+		sol11ghd_target_free(d, cdip, &GTGTP2ATAP(gtgtp)->ac_ccc, gtgtp);
 
 		ddi_set_driver_private(cdip, NULL);
 		ddi_set_name_addr(cdip, NULL);
@@ -917,10 +917,10 @@ ata_disk_reset(opaque_t ctl_data, int level)
 	/* XXX - Note that this interface is currently not used by dadk */
 
 	if (level == RESET_TARGET) {
-		rc = ghd_tran_reset_target(&ata_drvp->ad_ctlp->ac_ccc, gtgtp,
+		rc = sol11ghd_tran_reset_target(&ata_drvp->ad_ctlp->ac_ccc, gtgtp,
 			NULL);
 	} else if (level == RESET_ALL) {
-		rc = ghd_tran_reset_bus(&ata_drvp->ad_ctlp->ac_ccc, gtgtp,
+		rc = sol11ghd_tran_reset_bus(&ata_drvp->ad_ctlp->ac_ccc, gtgtp,
 					NULL);
 	}
 
@@ -1072,7 +1072,7 @@ ata_disk_do_ioctl(
 	 * add it to the queue, when it gets to the front the
 	 * ap_start function is called.
 	 */
-	rc = ghd_transport(&ata_ctlp->ac_ccc, gcmdp, gcmdp->cmd_gtgtp,
+	rc = sol11ghd_transport(&ata_ctlp->ac_ccc, gcmdp, gcmdp->cmd_gtgtp,
 		0, TRUE, NULL);
 
 	if (rc != TRAN_ACCEPT) {
@@ -1110,7 +1110,7 @@ ata_disk_pktalloc(opaque_t ctl_data, int (*callback)(caddr_t), caddr_t arg)
 	 * Allocate and  init the GHD gcmd_t structure and the
 	 * DADA cmpkt and the ata_pkt
 	 */
-	if ((gcmdp = ghd_gcmd_alloc(gtgtp,
+	if ((gcmdp = sol11ghd_gcmd_alloc(gtgtp,
 				    (sizeof (cmpkt_t) + sizeof (ata_pkt_t)),
 				    (callback == DDI_DMA_SLEEP))) == NULL) {
 		return ((cmpkt_t *)NULL);
@@ -1173,7 +1173,7 @@ ata_disk_pktfree(opaque_t ctl_data, cmpkt_t *pktp)
 	ASSERT(!(ata_pktp->ap_flags & AP_FREE));
 	ata_pktp->ap_flags = AP_FREE;
 
-	ghd_gcmd_free(CPKT2GCMD(pktp));
+	sol11ghd_gcmd_free(CPKT2GCMD(pktp));
 }
 
 
@@ -1553,7 +1553,7 @@ ata_disk_transport(opaque_t ctl_data, cmpkt_t *pktp)
 
 	/* call ghd transport routine */
 
-	rc = ghd_transport(&ata_ctlp->ac_ccc, APKT2GCMD(ata_pktp),
+	rc = sol11ghd_transport(&ata_ctlp->ac_ccc, APKT2GCMD(ata_pktp),
 		gtgtp, pktp->cp_time, polled, NULL);
 
 	/* see if pkt was not accepted */

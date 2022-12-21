@@ -33,7 +33,7 @@
  * Local Function Prototypes
  */
 
-static	struct scsi_pkt	*sol11ghd_pktalloc(ccc_t *cccp, struct scsi_address *ap,
+static	struct scsi_pkt	*ghd_pktalloc(ccc_t *cccp, struct scsi_address *ap,
 				int cmdlen, int statuslen, int tgtlen,
 				int (*callback)(), caddr_t arg, int ccblen);
 
@@ -83,7 +83,7 @@ sol11ghd_tran_sync_pkt(struct scsi_address *ap, struct scsi_pkt *pktp)
 
 
 static struct scsi_pkt *
-sol11ghd_pktalloc(ccc_t	*cccp,
+ghd_pktalloc(ccc_t	*cccp,
 	struct scsi_address *ap,
 	int	 cmdlen,
 	int	 statuslen,
@@ -164,7 +164,7 @@ sol11ghd_pktfree(ccc_t		*cccp,
 
 
 struct scsi_pkt *
-sol11ghd_tran_init_pkt_attr(ccc_t	*cccp,
+ghd_tran_init_pkt_attr(ccc_t	*cccp,
 			struct scsi_address *ap,
 			struct scsi_pkt	*pktp,
 			struct buf	*bp,
@@ -187,7 +187,7 @@ sol11ghd_tran_init_pkt_attr(ccc_t	*cccp,
 	 * Allocate a pkt
 	 */
 	if (pktp == NULL) {
-		pktp = sol11ghd_pktalloc(cccp, ap, cmdlen, statuslen, tgtlen,
+		pktp = ghd_pktalloc(cccp, ap, cmdlen, statuslen, tgtlen,
 		    callback, arg, ccblen);
 		if (pktp == NULL)
 			return (NULL);
@@ -200,7 +200,7 @@ sol11ghd_tran_init_pkt_attr(ccc_t	*cccp,
 
 	gcmdp = PKTP2GCMDP(pktp);
 
-	GDBG_PKT(("sol11ghd_tran_init_pkt_attr: gcmdp 0x%p dma_handle 0x%p\n",
+	GDBG_PKT(("ghd_tran_init_pkt_attr: gcmdp 0x%p dma_handle 0x%p\n",
 	    gcmdp, gcmdp->cmd_dma_handle));
 
 	/*
@@ -209,7 +209,7 @@ sol11ghd_tran_init_pkt_attr(ccc_t	*cccp,
 
 	if (cmdlen && gcmdp->cmd_dma_handle) {
 		/* release the old DMA resources */
-		sol11ghd_dmafree_attr(gcmdp);
+		ghd_dmafree_attr(gcmdp);
 	}
 
 	/*
@@ -217,7 +217,7 @@ sol11ghd_tran_init_pkt_attr(ccc_t	*cccp,
 	 * if the device supports DMA.
 	 */
 
-	GDBG_PKT(("sol11ghd_tran_init_pkt: gcmdp 0x%p bp 0x%p limp 0x%p\n",
+	GDBG_PKT(("ghd_tran_init_pkt: gcmdp 0x%p bp 0x%p limp 0x%p\n",
 	    gcmdp, bp, sg_attrp));
 
 	if (bp && bp->b_bcount && sg_attrp) {
@@ -236,7 +236,7 @@ sol11ghd_tran_init_pkt_attr(ccc_t	*cccp,
 			dma_flags |= DDI_DMA_PARTIAL;
 
 		if (gcmdp->cmd_dma_handle == NULL) {
-			if (!sol11ghd_dma_buf_bind_attr(cccp, gcmdp, bp, dma_flags,
+			if (!ghd_dma_buf_bind_attr(cccp, gcmdp, bp, dma_flags,
 				callback, arg, sg_attrp)) {
 				if (new_pkt)
 					sol11ghd_pktfree(cccp, ap, pktp);
@@ -245,7 +245,7 @@ sol11ghd_tran_init_pkt_attr(ccc_t	*cccp,
 		}
 
 		/* map the buffer and/or create the scatter/gather list */
-		if (!sol11ghd_dmaget_attr(cccp, gcmdp,
+		if (!ghd_dmaget_attr(cccp, gcmdp,
 			bp->b_bcount - gcmdp->cmd_totxfer,
 			sg_attrp->dma_attr_sgllen, &xfercount)) {
 			if (new_pkt)

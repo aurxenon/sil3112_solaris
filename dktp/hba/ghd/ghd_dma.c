@@ -29,9 +29,9 @@
 #include "ghd.h"
 
 void
-sol11ghd_dmafree_attr(gcmd_t *gcmdp)
+ghd_dmafree_attr(gcmd_t *gcmdp)
 {
-	GDBG_DMA(("sol11ghd_dma_attr_free: gcmdp 0x%p\n", gcmdp));
+	GDBG_DMA(("ghd_dma_attr_free: gcmdp 0x%p\n", gcmdp));
 
 	if (gcmdp->cmd_dma_handle != NULL) {
 		if (ddi_dma_unbind_handle(gcmdp->cmd_dma_handle) !=
@@ -39,7 +39,7 @@ sol11ghd_dmafree_attr(gcmd_t *gcmdp)
 			cmn_err(CE_WARN, "ghd dma free attr: "
 			    "unbind handle failed");
 		ddi_dma_free_handle(&gcmdp->cmd_dma_handle);
-		GDBG_DMA(("sol11ghd_dma_attr_free: ddi_dma_free 0x%p\n", gcmdp));
+		GDBG_DMA(("ghd_dma_attr_free: ddi_dma_free 0x%p\n", gcmdp));
 		gcmdp->cmd_dma_handle = NULL;
 		gcmdp->cmd_ccount = 0;
 		gcmdp->cmd_totxfer = 0;
@@ -48,7 +48,7 @@ sol11ghd_dmafree_attr(gcmd_t *gcmdp)
 
 
 int
-sol11ghd_dma_buf_bind_attr(ccc_t		*cccp,
+ghd_dma_buf_bind_attr(ccc_t		*cccp,
 			gcmd_t		*gcmdp,
 			struct buf	*bp,
 			int		 dma_flags,
@@ -58,7 +58,7 @@ sol11ghd_dma_buf_bind_attr(ccc_t		*cccp,
 {
 	int	 status;
 
-	GDBG_DMA(("sol11ghd_dma_attr_get: start: gcmdp 0x%p sg_attrp 0x%p\n",
+	GDBG_DMA(("ghd_dma_attr_get: start: gcmdp 0x%p sg_attrp 0x%p\n",
 		gcmdp, sg_attrp));
 
 
@@ -80,7 +80,7 @@ sol11ghd_dma_buf_bind_attr(ccc_t		*cccp,
 		    callback, arg, &gcmdp->cmd_first_cookie,
 		    &gcmdp->cmd_ccount);
 
-	GDBG_DMA(("sol11ghd_dma_attr_get: setup: gcmdp 0x%p status %d h 0x%p "
+	GDBG_DMA(("ghd_dma_attr_get: setup: gcmdp 0x%p status %d h 0x%p "
 		"c 0x%d\n", gcmdp, status, gcmdp->cmd_dma_handle,
 			gcmdp->cmd_ccount));
 
@@ -122,7 +122,7 @@ sol11ghd_dma_buf_bind_attr(ccc_t		*cccp,
 		return (FALSE);
 	}
 
-	/* initialize the loop controls for sol11ghd_dmaget_next_attr() */
+	/* initialize the loop controls for ghd_dmaget_next_attr() */
 	gcmdp->cmd_windex = 0;
 	gcmdp->cmd_cindex = 0;
 	gcmdp->cmd_totxfer = 0;
@@ -133,14 +133,14 @@ sol11ghd_dma_buf_bind_attr(ccc_t		*cccp,
 
 
 uint_t
-sol11ghd_dmaget_next_attr(ccc_t *cccp, gcmd_t *gcmdp, long max_transfer_cnt,
+ghd_dmaget_next_attr(ccc_t *cccp, gcmd_t *gcmdp, long max_transfer_cnt,
     int sg_size, ddi_dma_cookie_t cookie)
 {
 	ulong_t	toxfer = 0;
 	int	num_segs = 0;
 	int	single_seg;
 
-	GDBG_DMA(("sol11ghd_dma_attr_get: start: gcmdp 0x%p h 0x%p c 0x%x\n",
+	GDBG_DMA(("ghd_dma_attr_get: start: gcmdp 0x%p h 0x%p c 0x%x\n",
 			gcmdp, gcmdp->cmd_dma_handle, gcmdp->cmd_ccount));
 
 	/*
@@ -194,7 +194,7 @@ sol11ghd_dmaget_next_attr(ccc_t *cccp, gcmd_t *gcmdp, long max_transfer_cnt,
 
 
 int
-sol11ghd_dmaget_attr(ccc_t		*cccp,
+ghd_dmaget_attr(ccc_t		*cccp,
 		gcmd_t		*gcmdp,
 		long		count,
 		int		sg_size,
@@ -240,6 +240,6 @@ sol11ghd_dmaget_attr(ccc_t		*cccp,
 	 * start the Scatter/Gather loop passing in the first
 	 * cookie obtained above
 	 */
-	*xfer = sol11ghd_dmaget_next_attr(cccp, gcmdp, count, sg_size, cookie);
+	*xfer = ghd_dmaget_next_attr(cccp, gcmdp, count, sg_size, cookie);
 	return (TRUE);
 }

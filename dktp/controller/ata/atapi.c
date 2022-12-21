@@ -347,7 +347,7 @@ atapi_tran_tgt_init(
 		return (DDI_FAILURE);
 	}
 
-	gtgtp = ghd_target_init(hba_dip, tgt_dip, &ata_ctlp->ac_ccc,
+	gtgtp = sol11ghd_target_init(hba_dip, tgt_dip, &ata_ctlp->ac_ccc,
 	    sizeof (ata_tgt_t), ata_ctlp,
 	    ap->a_target, ap->a_lun);
 
@@ -398,7 +398,7 @@ atapi_tran_tgt_free(
 {
 	ADBG_TRACE(("atapi_tran_tgt_free entered\n"));
 
-	ghd_target_free(hba_dip, tgt_dip, &TRAN2ATAP(hba_tran)->ac_ccc,
+	sol11ghd_target_free(hba_dip, tgt_dip, &TRAN2ATAP(hba_tran)->ac_ccc,
 		TRAN2GTGTP(hba_tran));
 	hba_tran->tran_tgt_private = NULL;
 }
@@ -420,11 +420,11 @@ atapi_tran_abort(
 	ADBG_TRACE(("atapi_tran_abort entered\n"));
 
 	if (spktp) {
-		return (ghd_tran_abort(&ADDR2CTL(ap)->ac_ccc, PKTP2GCMDP(spktp),
+		return (sol11ghd_tran_abort(&ADDR2CTL(ap)->ac_ccc, PKTP2GCMDP(spktp),
 			ADDR2GTGTP(ap), NULL));
 	}
 
-	return (ghd_tran_abort_lun(&ADDR2CTL(ap)->ac_ccc, ADDR2GTGTP(ap),
+	return (sol11ghd_tran_abort_lun(&ADDR2CTL(ap)->ac_ccc, ADDR2GTGTP(ap),
 		NULL));
 }
 
@@ -444,10 +444,10 @@ atapi_tran_reset(
 	ADBG_TRACE(("atapi_tran_reset entered\n"));
 
 	if (level == RESET_TARGET)
-		return (ghd_tran_reset_target(&ADDR2CTL(ap)->ac_ccc,
+		return (sol11ghd_tran_reset_target(&ADDR2CTL(ap)->ac_ccc,
 		    ADDR2GTGTP(ap), NULL));
 	if (level == RESET_ALL)
-		return (ghd_tran_reset_bus(&ADDR2CTL(ap)->ac_ccc,
+		return (sol11ghd_tran_reset_bus(&ADDR2CTL(ap)->ac_ccc,
 		    ADDR2GTGTP(ap), NULL));
 	return (FALSE);
 
@@ -869,7 +869,7 @@ atapi_tran_destroy_pkt(
 		ghd_dmafree_attr(gcmdp);
 	}
 
-	ghd_pktfree(&ADDR2CTL(ap)->ac_ccc, ap, spktp);
+	sol11ghd_pktfree(&ADDR2CTL(ap)->ac_ccc, ap, spktp);
 }
 
 
@@ -930,7 +930,7 @@ atapi_tran_sync_pkt(
 	ADBG_TRACE(("atapi_tran_sync_pkt entered\n"));
 
 	if (PKTP2GCMDP(spktp)->cmd_dma_handle != NULL) {
-		ghd_tran_sync_pkt(ap, spktp);
+		sol11ghd_tran_sync_pkt(ap, spktp);
 	}
 }
 
@@ -1000,7 +1000,7 @@ atapi_tran_start(
 
 	/* call common transport routine */
 
-	rc = ghd_transport(&ata_ctlp->ac_ccc, gcmdp, gcmdp->cmd_gtgtp,
+	rc = sol11ghd_transport(&ata_ctlp->ac_ccc, gcmdp, gcmdp->cmd_gtgtp,
 		spktp->pkt_time, polled, NULL);
 
 	/* see if pkt was not accepted */

@@ -50,8 +50,6 @@ sol11ghd_err(const char *fmt, ...)
 {
 	va_list	ap;
 
-	//cmn_err(CE_NOTE, "REACHING SOL11GHD_ERR\n");
-
 	va_start(ap, fmt);
 	vcmn_err(CE_CONT, fmt, ap);
 	va_end(ap);
@@ -61,7 +59,7 @@ sol11ghd_err(const char *fmt, ...)
 #define	PRF	prom_printf
 
 static void
-sol11ghd_dump_ccc(ccc_t *P)
+ghd_dump_ccc(ccc_t *P)
 {
 	PRF("nextp 0x%p tmrp 0x%p label 0x%p &mutex 0x%p\n",
 		P->ccc_nextp, P->ccc_tmrp, P->ccc_label, &P->ccc_activel_mutex);
@@ -84,7 +82,7 @@ sol11ghd_dump_ccc(ccc_t *P)
 
 
 static void
-sol11ghd_dump_gcmd(gcmd_t *P)
+ghd_dump_gcmd(gcmd_t *P)
 {
 	PRF("cmd_q nextp 0x%p prevp 0x%p private 0x%p\n",
 	    P->cmd_q.l2_nextp, P->cmd_q.l2_prevp, P->cmd_q.l2_private);

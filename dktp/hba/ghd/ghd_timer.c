@@ -40,28 +40,28 @@
  * Local functions
  */
 
-static	gcmd_t	*sol11ghd_timeout_get(ccc_t *cccp);
-static	int	 sol11ghd_timeout_loop(ccc_t *cccp);
-static	uint_t	 sol11ghd_timeout_softintr(caddr_t arg);
-static	void	 sol11ghd_timeout(void *arg);
-static	void	 sol11ghd_timeout_disable(tmr_t *tmrp);
-static	void	 sol11ghd_timeout_enable(tmr_t *tmrp);
+static	gcmd_t	*ghd_timeout_get(ccc_t *cccp);
+static	int	 ghd_timeout_loop(ccc_t *cccp);
+static	uint_t	 ghd_timeout_softintr(caddr_t arg);
+static	void	 ghd_timeout(void *arg);
+static	void	 ghd_timeout_disable(tmr_t *tmrp);
+static	void	 ghd_timeout_enable(tmr_t *tmrp);
 
 /*
  * Local data
  */
-long	sol11ghd_HZ;
+long	ghd_HZ;
 static	kmutex_t tglobal_mutex;
 
 /* table of timeouts for abort processing steps */
-cmdstate_t sol11ghd_timeout_table[GCMD_NSTATES];
+cmdstate_t ghd_timeout_table[GCMD_NSTATES];
 
-/* This table indirectly initializes the sol11ghd_timeout_table */
-struct {
+/* This table indirectly initializes the ghd_timeout_table */
+static struct {
 	int		valid;
 	cmdstate_t	state;
 	long		value;
-} sol11ghd_time_inits[] = {
+} ghd_time_inits[] = {
 	{ TRUE, GCMD_STATE_ABORTING_CMD, 3 },
 	{ TRUE, GCMD_STATE_ABORTING_DEV, 3 },
 	{ TRUE, GCMD_STATE_RESETTING_DEV, 5 },
@@ -73,8 +73,8 @@ struct {
 	{ FALSE, 0, 0 },	/* spare entry */
 	{ FALSE, 0, 0 }		/* spare entry */
 };
-int	sol11ghd_ntime_inits = sizeof (sol11ghd_time_inits)
-				/ sizeof (sol11ghd_time_inits[0]);
+static int ghd_ntime_inits = sizeof (ghd_time_inits)
+				/ sizeof (ghd_time_inits[0]);
 
 /*
  * Locally-used macros
@@ -154,12 +154,12 @@ _info(struct modinfo *modinfop)
 
 /*
  *
- * sol11ghd_timeout_loop()
+ * ghd_timeout_loop()
  *
  *	Check the CCB timer value for every active CCB for this
  * HBA driver instance.
  *
- *	This function is called both by the sol11ghd_timeout() interrupt
+ *	This function is called both by the ghd_timeout() interrupt
  * handler when called via the timer callout, and by sol11ghd_timer_poll()
  * while procesing "polled" (FLAG_NOINTR) requests.
  *
@@ -171,7 +171,7 @@ _info(struct modinfo *modinfop)
  */
 
 static int
-sol11ghd_timeout_loop(ccc_t *cccp)
+ghd_timeout_loop(ccc_t *cccp)
 {
 	int	 got_any = FALSE;
 	gcmd_t	*gcmdp;
@@ -179,7 +179,7 @@ sol11ghd_timeout_loop(ccc_t *cccp)
 
 	mutex_enter(&cccp->ccc_activel_mutex);
 	lbolt = ddi_get_lbolt();
-	gcmdp = (gcmd_t *)sol11L2_next(&cccp->ccc_activel);
+	gcmdp = (gcmd_t *)L2_next(&cccp->ccc_activel);
 	while (gcmdp) {
 		/*
 		 * check to see if this one has timed out
@@ -188,7 +188,7 @@ sol11ghd_timeout_loop(ccc_t *cccp)
 		    (lbolt - gcmdp->cmd_start_time >= gcmdp->cmd_timeout)) {
 			got_any = TRUE;
 		}
-		gcmdp = (gcmd_t *)sol11L2_next(&gcmdp->cmd_timer_link);
+		gcmdp = (gcmd_t *)L2_next(&gcmdp->cmd_timer_link);
 	}
 	mutex_exit(&cccp->ccc_activel_mutex);
 	return (got_any);
@@ -196,7 +196,7 @@ sol11ghd_timeout_loop(ccc_t *cccp)
 
 /*
  *
- * sol11ghd_timeout()
+ * ghd_timeout()
  *
  *	Called every t_ticks ticks to scan the CCB timer lists
  *
@@ -204,7 +204,7 @@ sol11ghd_timeout_loop(ccc_t *cccp)
  *	It protects the list of ccc_t's.
  *
  *	The list of cmd_t's is protected by the ccc_activel_mutex mutex
- *	in the sol11ghd_timeout_loop() routine.
+ *	in the ghd_timeout_loop() routine.
  *
  * 	We also check to see if the waitq is frozen, and if so,
  * 	adjust our timeout to call back sooner if necessary (to
@@ -238,7 +238,7 @@ sol11ghd_timeout_loop(ccc_t *cccp)
  */
 
 static void
-sol11ghd_timeout(void *arg)
+ghd_timeout(void *arg)
 {
 	tmr_t	*tmrp = (tmr_t *)arg;
 	ccc_t	*cccp;
@@ -267,7 +267,7 @@ sol11ghd_timeout(void *arg)
 		 * then kick off the HBA driver's softintr
 		 * handler to do the timeout processing
 		 */
-		if (sol11ghd_timeout_loop(cccp)) {
+		if (ghd_timeout_loop(cccp)) {
 			cccp->ccc_timeout_pending = 1;
 			ddi_trigger_softintr(cccp->ccc_soft_id);
 		}
@@ -297,7 +297,7 @@ sol11ghd_timeout(void *arg)
 		resched = tmrp->t_ticks;
 
 	/* re-establish the timeout callback */
-	tmrp->t_timeout_id = timeout(sol11ghd_timeout, (void *)tmrp, resched);
+	tmrp->t_timeout_id = timeout(ghd_timeout, (void *)tmrp, resched);
 
 	mutex_exit(&tmrp->t_mutex);
 }
@@ -330,7 +330,7 @@ sol11ghd_timer_newstate(ccc_t *cccp, gcmd_t *gcmdp, gtgt_t *gtgtp,
 #ifdef	DEBUG
 	/* it shouldn't be on the timer active list */
 	if (gcmdp != NULL) {
-		sol11L2el_t	*lp = &gcmdp->cmd_timer_link;
+		L2el_t	*lp = &gcmdp->cmd_timer_link;
 		ASSERT(lp->l2_nextp == lp);
 		ASSERT(lp->l2_prevp == lp);
 	}
@@ -424,7 +424,7 @@ sol11ghd_timer_newstate(ccc_t *cccp, gcmd_t *gcmdp, gtgt_t *gtgtp,
 
 		/*
 		 * Before firing off the HBA action, restart the timer
-		 * using the timeout value from sol11ghd_timeout_table[].
+		 * using the timeout value from ghd_timeout_table[].
 		 *
 		 * The table entries should never restart the timer
 		 * for the GHD_STATE_IDLE and GHD_STATE_DONEQ states.
@@ -432,7 +432,7 @@ sol11ghd_timer_newstate(ccc_t *cccp, gcmd_t *gcmdp, gtgt_t *gtgtp,
 		 */
 		if (gcmdp) {
 			gcmdp->cmd_state = next_state;
-			new_timeout = sol11ghd_timeout_table[gcmdp->cmd_state];
+			new_timeout = ghd_timeout_table[gcmdp->cmd_state];
 			if (new_timeout != 0)
 				sol11ghd_timer_start(cccp, gcmdp, new_timeout);
 
@@ -485,9 +485,9 @@ sol11ghd_timer_newstate(ccc_t *cccp, gcmd_t *gcmdp, gtgt_t *gtgtp,
 
 	mutex_enter(&cccp->ccc_activel_mutex);
 
-	for (gcmdp_scan = (gcmd_t *)sol11L2_next(&cccp->ccc_activel);
+	for (gcmdp_scan = (gcmd_t *)L2_next(&cccp->ccc_activel);
 	    gcmdp_scan != NULL;
-	    gcmdp_scan = (gcmd_t *)sol11L2_next(&gcmdp_scan->cmd_timer_link)) {
+	    gcmdp_scan = (gcmd_t *)L2_next(&gcmdp_scan->cmd_timer_link)) {
 
 		/* skip idle or waitq commands */
 		if (gcmdp_scan->cmd_state <= GCMD_STATE_WAITQ)
@@ -529,7 +529,7 @@ sol11ghd_timer_newstate(ccc_t *cccp, gcmd_t *gcmdp, gtgt_t *gtgtp,
 
 /*
  *
- * sol11ghd_timeout_softintr()
+ * ghd_timeout_softintr()
  *
  *	This interrupt is scheduled if a particular HBA instance's
  *	CCB timer list has a timed out CCB, or if the waitq is in a
@@ -544,13 +544,13 @@ sol11ghd_timer_newstate(ccc_t *cccp, gcmd_t *gcmdp, gtgt_t *gtgtp,
  *	triggered and it might try to remove a CCB from the list at
  *	same time as were trying to abort it.
  *
- *	For frozen-waitq processing, just call sol11ghd_waitq_process...
+ *	For frozen-waitq processing, just call ghd_waitq_process...
  *	it takes care of the time calculations.
  *
  */
 
 static uint_t
-sol11ghd_timeout_softintr(caddr_t arg)
+ghd_timeout_softintr(caddr_t arg)
 {
 	ccc_t	*cccp = (ccc_t *)arg;
 
@@ -601,7 +601,7 @@ sol11ghd_timer_poll(ccc_t *cccp, gtimer_poll_t calltype)
 	ASSERT(mutex_owned(&cccp->ccc_hba_mutex));
 
 	/* abort each expired CCB */
-	while (gcmdp = sol11ghd_timeout_get(cccp)) {
+	while (gcmdp = ghd_timeout_get(cccp)) {
 
 		GDBG_INTR(("?sol11ghd_timer_poll: cccp=0x%p gcmdp=0x%p\n",
 		    cccp, gcmdp));
@@ -659,14 +659,14 @@ sol11ghd_timer_poll(ccc_t *cccp, gtimer_poll_t calltype)
 
 /*
  *
- * sol11ghd_timeout_get()
+ * ghd_timeout_get()
  *
  *	Remove the first expired CCB from a particular timer list.
  *
  */
 
 static gcmd_t *
-sol11ghd_timeout_get(ccc_t *cccp)
+ghd_timeout_get(ccc_t *cccp)
 {
 	gcmd_t	*gcmdp;
 	ulong_t	lbolt;
@@ -675,19 +675,19 @@ sol11ghd_timeout_get(ccc_t *cccp)
 
 	mutex_enter(&cccp->ccc_activel_mutex);
 	lbolt = ddi_get_lbolt();
-	gcmdp = (gcmd_t *)sol11L2_next(&cccp->ccc_activel);
+	gcmdp = (gcmd_t *)L2_next(&cccp->ccc_activel);
 	while (gcmdp != NULL) {
 		if ((gcmdp->cmd_timeout > 0) &&
 		    (lbolt - gcmdp->cmd_start_time >= gcmdp->cmd_timeout))
 			goto expired;
-		gcmdp = (gcmd_t *)sol11L2_next(&gcmdp->cmd_timer_link);
+		gcmdp = (gcmd_t *)L2_next(&gcmdp->cmd_timer_link);
 	}
 	mutex_exit(&cccp->ccc_activel_mutex);
 	return (NULL);
 
 expired:
 	/* unlink if from the CCB timer list */
-	sol11L2_delete(&gcmdp->cmd_timer_link);
+	L2_delete(&gcmdp->cmd_timer_link);
 	mutex_exit(&cccp->ccc_activel_mutex);
 	return (gcmdp);
 }
@@ -695,7 +695,7 @@ expired:
 
 /*
  *
- * sol11ghd_timeout_enable()
+ * ghd_timeout_enable()
  *
  *	Only start a single timeout callback for each HBA driver
  *	regardless of the number of boards it supports.
@@ -703,19 +703,19 @@ expired:
  */
 
 static void
-sol11ghd_timeout_enable(tmr_t *tmrp)
+ghd_timeout_enable(tmr_t *tmrp)
 {
 	mutex_enter(&tglobal_mutex);
 	if (tmrp->t_refs++ == 0)  {
 		/* establish the timeout callback */
-		tmrp->t_timeout_id = timeout(sol11ghd_timeout, (void *)tmrp,
+		tmrp->t_timeout_id = timeout(ghd_timeout, (void *)tmrp,
 			tmrp->t_ticks);
 	}
 	mutex_exit(&tglobal_mutex);
 }
 
 static void
-sol11ghd_timeout_disable(tmr_t *tmrp)
+ghd_timeout_disable(tmr_t *tmrp)
 {
 	ASSERT(tmrp != NULL);
 	ASSERT(tmrp->t_ccc_listp == NULL);
@@ -742,9 +742,9 @@ sol11ghd_timer_init(tmr_t *tmrp, long ticks)
 	/*
 	 * determine default timeout value
 	 */
-	sol11ghd_HZ = drv_usectohz(1000000);
+	ghd_HZ = drv_usectohz(1000000);
 	if (ticks == 0)
-		ticks = scsi_watchdog_tick * sol11ghd_HZ;
+		ticks = scsi_watchdog_tick * ghd_HZ;
 	tmrp->t_ticks = ticks;
 
 
@@ -753,15 +753,15 @@ sol11ghd_timer_init(tmr_t *tmrp, long ticks)
 	 * indirect lookup table so that this code isn't dependant
 	 * on the cmdstate_t enum values or order.
 	 */
-	for (indx = 0; indx < sol11ghd_ntime_inits; indx++) {
+	for (indx = 0; indx < ghd_ntime_inits; indx++) {
 		int	state;
 		ulong_t	value;
 
-		if (!sol11ghd_time_inits[indx].valid)
+		if (!ghd_time_inits[indx].valid)
 			continue;
-		state = sol11ghd_time_inits[indx].state;
-		value = sol11ghd_time_inits[indx].value;
-		sol11ghd_timeout_table[state] = value;
+		state = ghd_time_inits[indx].state;
+		value = ghd_time_inits[indx].value;
+		ghd_timeout_table[state] = value;
 	}
 }
 
@@ -780,7 +780,7 @@ sol11ghd_timer_attach(ccc_t *cccp, tmr_t *tmrp,
 
 	if (ddi_add_softintr(cccp->ccc_hba_dip, DDI_SOFTINT_LOW,
 	    &cccp->ccc_soft_id, &iblock, NULL,
-	    sol11ghd_timeout_softintr, (caddr_t)cccp) != DDI_SUCCESS) {
+	    ghd_timeout_softintr, (caddr_t)cccp) != DDI_SUCCESS) {
 		GDBG_ERROR((
 		    "sol11ghd_timer_attach: add softintr failed cccp 0x%p\n",
 		    (void *)cccp));
@@ -789,7 +789,7 @@ sol11ghd_timer_attach(ccc_t *cccp, tmr_t *tmrp,
 
 	/* init the per HBA-instance control fields */
 	mutex_init(&cccp->ccc_activel_mutex, NULL, MUTEX_DRIVER, iblock);
-	SOL11L2_INIT(&cccp->ccc_activel);
+	L2_INIT(&cccp->ccc_activel);
 	cccp->ccc_timeout_func = timeout_func;
 
 	/* stick this HBA's control structure on the master list */
@@ -806,7 +806,7 @@ sol11ghd_timer_attach(ccc_t *cccp, tmr_t *tmrp,
 	 * This is to avoid a deadlock when calling untimeout() from
 	 * the disable routine.
 	 */
-	sol11ghd_timeout_enable(tmrp);
+	ghd_timeout_enable(tmrp);
 
 	return (TRUE);
 }
@@ -853,7 +853,7 @@ remove_it:
 
 	ddi_remove_softintr(cccp->ccc_soft_id);
 
-	sol11ghd_timeout_disable(tmrp);
+	ghd_timeout_disable(tmrp);
 }
 
 /*
@@ -873,10 +873,10 @@ sol11ghd_timer_start(ccc_t *cccp, gcmd_t *gcmdp, long cmd_timeout)
 
 	/* initialize this CCB's timer */
 	gcmdp->cmd_start_time = lbolt;
-	gcmdp->cmd_timeout = (cmd_timeout * sol11ghd_HZ);
+	gcmdp->cmd_timeout = (cmd_timeout * ghd_HZ);
 
 	/* add it to the list */
-	sol11L2_add(&cccp->ccc_activel, &gcmdp->cmd_timer_link, gcmdp);
+	L2_add(&cccp->ccc_activel, &gcmdp->cmd_timer_link, gcmdp);
 	mutex_exit(&cccp->ccc_activel_mutex);
 }
 

@@ -227,13 +227,13 @@ sol11ghd_waitq_shuffle_up(ccc_t *cccp, gdev_t *gdevp)
 		 * promote the topmost request from the device queue to
 		 * the HBA queue.
 		 */
-		if ((gcmdp = sol11L2_remove_head(&GDEV_QHEAD(gdevp))) == NULL) {
+		if ((gcmdp = L2_remove_head(&GDEV_QHEAD(gdevp))) == NULL) {
 			/* the device is empty so we're done */
 			GDBG_WAITQ(("sol11ghd_waitq_shuffle_up: MT gdevp 0x%p\n",
 				gdevp));
 			return;
 		}
-		sol11L2_add(&GHBA_QHEAD(cccp), &gcmdp->cmd_q, gcmdp);
+		L2_add(&GHBA_QHEAD(cccp), &gcmdp->cmd_q, gcmdp);
 		GDEV_NACTIVE(gdevp)++;
 		gcmdp->cmd_waitq_level++;
 		GDBG_WAITQ(("sol11ghd_waitq_shuffle_up: gdevp 0x%p gcmdp 0x%p\n",
@@ -270,13 +270,13 @@ sol11ghd_waitq_delete(ccc_t *cccp, gcmd_t *gcmdp)
 		 * If this is an early-timeout, or early-abort, the request
 		 * is still linked onto a waitq. Remove it now. If it's
 		 * an active request and no longer on the waitq then calling
-		 * sol11L2_delete a second time does no harm.
+		 * L2_delete a second time does no harm.
 		 */
-		sol11L2_delete(&gcmdp->cmd_q);
+		L2_delete(&gcmdp->cmd_q);
 		break;
 
 	case 2:
-		sol11L2_delete(&gcmdp->cmd_q);
+		L2_delete(&gcmdp->cmd_q);
 #if defined(GHD_DEBUG) || defined(__lint)
 		if (GDEV_NACTIVE(gdevp) == 0)
 			debug_enter("\n\nGHD WAITQ DELETE\n\n");
@@ -326,15 +326,15 @@ sol11ghd_waitq_process_and_mutex_hold(ccc_t *cccp)
 	ASSERT(mutex_owned(&cccp->ccc_waitq_mutex));
 
 	for (;;) {
-		if (SOL11L2_EMPTY(&GHBA_QHEAD(cccp))) {
+		if (L2_EMPTY(&GHBA_QHEAD(cccp))) {
 			/* return if the list is empty */
-			GDBG_WAITQ(("sol11ghd_waitq_proc: MT cccp 0x%p qp 0x%p\n",
+			GDBG_WAITQ(("ghd_waitq_proc: MT cccp 0x%p qp 0x%p\n",
 				cccp, &cccp->ccc_waitq));
 			break;
 		}
 		if (GHBA_NACTIVE(cccp) >= GHBA_MAXACTIVE(cccp)) {
 			/* return if the HBA is too active */
-			GDBG_WAITQ(("sol11ghd_waitq_proc: N>M cccp 0x%p qp 0x%p"
+			GDBG_WAITQ(("ghd_waitq_proc: N>M cccp 0x%p qp 0x%p"
 				" N %ld max %ld\n", cccp, &cccp->ccc_waitq,
 					GHBA_NACTIVE(cccp),
 					GHBA_MAXACTIVE(cccp)));
@@ -346,7 +346,7 @@ sol11ghd_waitq_process_and_mutex_hold(ccc_t *cccp)
 		 * "held" by the HBA driver
 		 */
 		if (cccp->ccc_waitq_held) {
-			GDBG_WAITQ(("sol11ghd_waitq_proc: held"));
+			GDBG_WAITQ(("ghd_waitq_proc: held"));
 			return (rc);
 		}
 
@@ -364,20 +364,20 @@ sol11ghd_waitq_process_and_mutex_hold(ccc_t *cccp)
 			if (time_to_wait > 0) {
 				/*
 				 * stay frozen; we'll be called again
-				 * by sol11ghd_timeout_softintr()
+				 * by ghd_timeout_softintr()
 				 */
-				GDBG_WAITQ(("sol11ghd_waitq_proc: frozen"));
+				GDBG_WAITQ(("ghd_waitq_proc: frozen"));
 				return (rc);
 			} else {
 				/* unfreeze and continue */
-				GDBG_WAITQ(("sol11ghd_waitq_proc: unfreezing"));
+				GDBG_WAITQ(("ghd_waitq_proc: unfreezing"));
 				cccp->ccc_waitq_freezetime = 0;
 				cccp->ccc_waitq_freezedelay = 0;
 				cccp->ccc_waitq_frozen = 0;
 			}
 		}
 
-		gcmdp = (gcmd_t *)sol11L2_remove_head(&GHBA_QHEAD(cccp));
+		gcmdp = (gcmd_t *)L2_remove_head(&GHBA_QHEAD(cccp));
 		GHBA_NACTIVE(cccp)++;
 		gcmdp->cmd_waitq_level++;
 		mutex_exit(&cccp->ccc_waitq_mutex);
@@ -393,15 +393,15 @@ sol11ghd_waitq_process_and_mutex_hold(ccc_t *cccp)
 			mutex_enter(&cccp->ccc_waitq_mutex);
 			GHBA_NACTIVE(cccp)--;
 			gcmdp->cmd_waitq_level--;
-			sol11L2_add_head(&GHBA_QHEAD(cccp), &gcmdp->cmd_q, gcmdp);
-			GDBG_WAITQ(("sol11ghd_waitq_proc: busy cccp 0x%p gcmdp 0x%p"
+			L2_add_head(&GHBA_QHEAD(cccp), &gcmdp->cmd_q, gcmdp);
+			GDBG_WAITQ(("ghd_waitq_proc: busy cccp 0x%p gcmdp 0x%p"
 				" handle 0x%p\n", cccp, gcmdp,
 					cccp->ccc_hba_handle));
 			break;
 		}
 		rc = TRUE;
 		mutex_enter(&cccp->ccc_waitq_mutex);
-		GDBG_WAITQ(("sol11ghd_waitq_proc: ++ cccp 0x%p gcmdp 0x%p N %ld\n",
+		GDBG_WAITQ(("ghd_waitq_proc: ++ cccp 0x%p gcmdp 0x%p N %ld\n",
 			cccp, gcmdp, GHBA_NACTIVE(cccp)));
 	}
 	ASSERT(mutex_owned(&cccp->ccc_hba_mutex));
